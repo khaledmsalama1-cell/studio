@@ -108,44 +108,47 @@
   --ease-out-studio: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-html,
-body,
-#root {
-  height: 100%;
-}
-body {
-  background: var(--ground);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-h1,
-h2,
-h3 {
-  font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-:focus-visible {
-  outline: 2px solid var(--cobalt);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-::selection {
-  background: var(--signal-soft);
-}
-* {
-  transition-timing-function: var(--ease-out-studio);
-}
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+/* Base styles live in the base layer so utility classes can always override them */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+  :focus-visible {
+    outline: 2px solid var(--cobalt);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  ::selection {
+    background: var(--signal-soft);
+  }
+  * {
+    transition-timing-function: var(--ease-out-studio);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 

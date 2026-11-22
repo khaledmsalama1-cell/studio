@@ -318,7 +318,7 @@ function Pipeline({ isStatic, engine, data, totalWords, busy, onVoice, onBuild, 
   ].filter(Boolean) as { key: string; title: string; status: string; done: boolean; body: React.ReactNode }[];
 
   return (
-    <ol className="grid gap-px overflow-hidden rounded-[var(--radius-panel)] border border-line-soft bg-line-soft sm:grid-cols-2 xl:grid-cols-4">
+    <ol className={cx("grid gap-px overflow-hidden rounded-[var(--radius-panel)] border border-line-soft bg-line-soft sm:grid-cols-2", steps.length === 4 ? "xl:grid-cols-4" : steps.length === 3 ? "xl:grid-cols-3" : "")}>
       {steps.map((s, i) => (
         <li key={s.key} className="flex flex-col gap-3 bg-surface p-4">
           <div className="flex items-center gap-2.5">

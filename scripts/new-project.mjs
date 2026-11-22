@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Scaffold a content project for a brand.
 //   npm run new -- --brand example-coffee --format reel --name fresh-beans [--engine hyperframes|remotion]
+//   npm run new -- --brand example-coffee --format post --name banner --width 1500 --height 500   # custom size
 // Formats: reel, promo, landscape (video) · carousel, post, square, story (static PNG)
 import fs from "node:fs";
 import path from "node:path";
@@ -17,6 +18,16 @@ if (!fs.existsSync(presetPath)) {
   die(`Unknown format "${format}". Available: ${all.join(", ")}`);
 }
 const preset = readJSON(presetPath);
+// Custom size: keep the format's scenes and behaviour, change the canvas
+if (args.width || args.height) {
+  const w = Math.round(Number(args.width || preset.width));
+  const h = Math.round(Number(args.height || preset.height));
+  if (!(w >= 200 && w <= 4096 && h >= 200 && h <= 4096)) die("--width and --height must be between 200 and 4096 pixels");
+  preset.width = w;
+  preset.height = h;
+  preset.description = `${preset.description} Custom size.`;
+  if (!preset.static && preset.captions) preset.captions.top = Math.round(h * (w > h ? 0.74 : 0.52));
+}
 if (engine === "remotion" && preset.static) die("Remotion engine is for video formats (reel, promo, landscape).");
 
 const date = new Date().toISOString().slice(0, 10);

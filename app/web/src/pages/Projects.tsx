@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { api, ago, type BrandSummary, type Meta, type ProjectSummary } from "../lib/api";
+import { api, ago, type BrandSummary, type ProjectSummary } from "../lib/api";
 import { SceneFrame, Stage } from "../components/ScenePreview";
-import { Badge, Button, Dialog, Empty, ErrorNote, Field, Input, PageHeader, Select, cx } from "../components/ui";
+import { CreateDialog } from "../components/CreateDialog";
+import { Badge, Button, Empty, PageHeader, Select, cx } from "../components/ui";
 
 const STATUSES = ["all", "draft", "in-review", "ready", "posted", "archived"];
 
@@ -48,7 +49,7 @@ export default function Projects() {
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-5">{list.map((p) => <ProjectCard key={p.brand + p.id} p={p} />)}</div>
       )}
-      <NewProjectDialog open={params.get("new") === "1"} defaultBrand={brand} onClose={() => setParams(brand ? { brand } : {})} />
+      <CreateDialog open={params.get("new") === "1"} defaultBrand={brand} onClose={() => setParams(brand ? { brand } : {})} />
     </>
   );
 }
@@ -80,98 +81,5 @@ export function ProjectCard({ p, compact }: { p: ProjectSummary; compact?: boole
         <Badge status={p.status} />
       </div>
     </Link>
-  );
-}
-
-export function NewProjectDialog({ open, onClose, defaultBrand }: { open: boolean; onClose: () => void; defaultBrand?: string }) {
-  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: () => api.get<Meta>("/api/meta") });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
-  const [brand, setBrand] = useState(defaultBrand || "");
-  const [format, setFormat] = useState("reel");
-  const [name, setName] = useState("");
-  const [engine, setEngine] = useState("hyperframes");
-  const [error, setError] = useState<unknown>(null);
-  const [busy, setBusy] = useState(false);
-  const nav = useNavigate();
-  const qc = useQueryClient();
-  useEffect(() => {
-    if (!brand && brands?.length) setBrand(defaultBrand || brands[0].slug);
-  }, [brands, brand, defaultBrand]);
-  const fmt = meta?.formats.find((f) => f.id === format);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await api.post<{ brand: string; id: string }>("/api/projects", { brand, format, name, engine: fmt?.static ? "hyperframes" : engine });
-      qc.invalidateQueries();
-      onClose();
-      nav(`/projects/${r.brand}/${r.id}`);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} title="New project" wide>
-      <form onSubmit={submit} className="space-y-5">
-        <div>
-          <span className="mb-2 block text-caption font-medium text-ink-2">Format</span>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-7">
-            {meta?.formats.map((f) => {
-              const r = f.width / f.height;
-              return (
-                <button type="button" key={f.id} onClick={() => setFormat(f.id)} className={cx("flex flex-col items-center gap-2 rounded-lg border px-2 py-3", format === f.id ? "border-ink bg-raised ring-1 ring-ink" : "border-line-soft bg-raised hover:border-ink-3")}>
-                  <span className="flex h-14 items-center">
-                    <span className={cx("block rounded-[3px] border-2", format === f.id ? "border-cobalt bg-cobalt-soft" : "border-ink-3")} style={{ height: r < 1 ? 52 : 52 / r, width: r < 1 ? 52 * r : 52 }} />
-                  </span>
-                  <span className="text-caption font-medium capitalize">{f.id}</span>
-                </button>
-              );
-            })}
-          </div>
-          {fmt && (
-            <p className="mt-2 text-caption text-ink-2">
-              {fmt.description} {fmt.width}×{fmt.height}.
-            </p>
-          )}
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Brand">
-            <Select value={brand} onChange={(e) => setBrand(e.target.value)} required>
-              {brands?.map((b) => (
-                <option key={b.slug} value={b.slug}>
-                  {b.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Name" hint="Short, e.g. stale-beans-tips">
-            <Input value={name} onChange={(e) => setName(e.target.value)} required placeholder="What it's about" />
-          </Field>
-          {!fmt?.static && (
-            <Field label="Video engine" hint={engine === "remotion" && !meta?.remotionInstalled ? "Remotion isn't installed yet: run npm run setup:remotion once." : "HyperFrames is the default and supports frame checks."}>
-              <Select value={engine} onChange={(e) => setEngine(e.target.value)}>
-                <option value="hyperframes">HyperFrames</option>
-                <option value="remotion">Remotion</option>
-              </Select>
-            </Field>
-          )}
-        </div>
-        <ErrorNote error={error} />
-        {!brands?.length && <p className="text-caption text-ink-2">Add a brand first — projects are styled from it.</p>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" busy={busy} disabled={!brand}>
-            Create project
-          </Button>
-        </div>
-      </form>
-    </Dialog>
   );
 }

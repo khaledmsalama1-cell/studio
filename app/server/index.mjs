@@ -47,6 +47,7 @@ function brandSummary(slug) {
     name: b.name,
     tagline: b.tagline,
     website: b.website,
+    ctas: b.ctas || [],
     colors: b.visual?.colors || {},
     fonts: b.visual?.fonts || {},
     logo,
@@ -277,10 +278,17 @@ app.get("/api/voices", async (c) => {
 app.get("/api/projects", (c) => c.json(listProjects(c.req.query("brand") || undefined)));
 
 app.post("/api/projects", async (c) => {
-  const { brand, format, name, engine } = await c.req.json();
+  const { brand, format, name, engine, width, height } = await c.req.json();
   need(slugOk(brand), "Choose a brand");
   need(name?.trim(), "Give the project a name");
-  const out = execFileSync(node, [script("new-project.mjs"), "--brand", brand, "--format", format || "reel", "--name", name.trim(), "--engine", engine || "hyperframes"], { cwd: ROOT }).toString();
+  need(/^[a-z]+$/.test(format || "reel"), "Unknown format");
+  const size = width && height ? ["--width", String(Number(width)), "--height", String(Number(height))] : [];
+  let out;
+  try {
+    out = execFileSync(node, [script("new-project.mjs"), "--brand", brand, "--format", format || "reel", "--name", name.trim(), "--engine", engine || "hyperframes", ...size], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] }).toString();
+  } catch (e) {
+    throw bad(String(e.stderr || e.message).replace(/\x1b\[[0-9;]*m/g, "").replace(/^✖\s*/, "").trim().split("\n")[0]);
+  }
   const id = out.match(/projects\/[^/]+\/([^\s]+)/)?.[1];
   return c.json({ brand, id });
 });
