@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
-import { ChevronUp, Clapperboard, Plus, Headphones, LayoutGrid, ListChecks, MessageSquareText, Monitor, Moon, Palette, Radar, Settings, Sun } from "lucide-react";
+import { Blocks, ChevronUp, Clapperboard, Plus, Headphones, LayoutGrid, ListChecks, MessageSquareText, Monitor, Moon, Palette, Radar, Settings, Sun } from "lucide-react";
 import { useTheme } from "../lib/theme";
 import { NowPlaying } from "../lib/player";
 import { useJobFeed } from "../lib/jobs";
@@ -20,6 +20,7 @@ const NAV = [
   { to: "/library", label: "Library", icon: Headphones },
   { to: "/research", label: "Research", icon: Radar },
   { to: "/claude", label: "Ask Claude", icon: MessageSquareText },
+  { to: "/apps", label: "Apps", icon: Blocks },
   { to: "/jobs", label: "Activity", icon: ListChecks },
 ];
 

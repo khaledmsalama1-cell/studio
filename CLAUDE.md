@@ -58,6 +58,10 @@ Music: put a licensed track at `assets/music.mp3` and set `content.json → musi
 - Spending money (ElevenLabs credits, HeyGen/Canva generation) — say what you're about to generate before large batches.
 - Outputs in `projects/` are git-ignored; brands are committed.
 
+## Apps
+
+Extra tools, skills and MCP connectors are added from the Apps page (catalogue: `apps/catalog.json`). What is installed right now is listed in `apps/INSTALLED.md`: read it when choosing how to do a task, and prefer those tools.
+
 ## Studio UI
 
 `npm run app` serves a local web UI (`app/`) that edits the same files and runs the same npm scripts. When Claude is started from the UI, it runs headless: no one can answer questions mid-task, so finish the work and put questions in the final message.

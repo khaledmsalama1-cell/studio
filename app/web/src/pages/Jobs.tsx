@@ -5,7 +5,7 @@ import { useJobs } from "../components/Layout";
 import { JobLog, Duration } from "../components/JobLog";
 import { Badge, Empty, PageHeader, cx } from "../components/ui";
 
-const KIND: Record<string, string> = { claude: "Claude", voice: "Voiceover", build: "Build", render: "Render", snapshot: "Frames", preview: "Preview", research: "Research", hooks: "Hooks", extract: "Website scan" };
+const KIND: Record<string, string> = { claude: "Claude", voice: "Voiceover", build: "Build", render: "Render", snapshot: "Frames", preview: "Preview", research: "Research", hooks: "Hooks", extract: "Website scan", install: "Install" };
 
 export default function Jobs() {
   const { jobs } = useJobs();

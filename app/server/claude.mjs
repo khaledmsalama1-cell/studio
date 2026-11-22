@@ -49,8 +49,17 @@ export function runClaude({ prompt, sessionId, title, meta = {} }) {
   if (claude.allowedTools?.length) args.push("--allowedTools", ...claude.allowedTools);
   if (claude.model) args.push("--model", claude.model);
 
+  // Keys from .env reach Claude so MCP connectors in .mcp.json can use ${KEY} placeholders
+  const env = {};
+  try {
+    for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (m && m[2]) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
+  } catch {}
   const job = startJob({
     kind: "claude",
+    env,
     title: title || prompt.split("\n")[0].slice(0, 70),
     cmd: "claude",
     args,

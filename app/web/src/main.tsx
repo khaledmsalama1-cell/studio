@@ -15,6 +15,7 @@ import Claude from "./pages/Claude";
 import Jobs from "./pages/Jobs";
 import Settings from "./pages/Settings";
 import Library from "./pages/Library";
+import Apps from "./pages/Apps";
 import { PlayerProvider } from "./lib/player";
 
 const qc = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: true, staleTime: 2000, retry: 1 } } });
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
       { path: "/projects", element: <Projects /> },
       { path: "/projects/:brand/:id", element: <ProjectDetail /> },
       { path: "/library", element: <Library /> },
+      { path: "/apps", element: <Apps /> },
       { path: "/research", element: <Research /> },
       { path: "/research/:brand/:key", element: <ResearchDetail /> },
       { path: "/claude", element: <Claude /> },
