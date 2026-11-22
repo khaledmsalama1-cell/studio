@@ -62,7 +62,7 @@ Music: put a licensed track at `assets/music.mp3` and set `content.json → musi
 
 Two registries extend the studio (synced on the Apps page → Sources → Refresh, cached in `app/.data/registry/`):
 - **studio-apps** (github.com/khaledmsalama1-cell/studio-apps): 160+ tools, services, skills and MCP connectors. Read `app/.data/registry/apps.json` when the user asks what tool to use for something.
-- **studio-templates** (github.com/khaledmsalama1-cell/studio-templates): 100+ content templates. Create from one with `npm run new -- --brand <slug> --template <file.json> --topic "..."` (or Create → Templates in the UI).
+- **studio-templates** (github.com/khaledmsalama1-cell/studio-templates): 100+ content templates and 100 fictional brand starters (`brands` in `app/.data/registry/templates.json`) the user can start a brand from. Create from one with `npm run new -- --brand <slug> --template <file.json> --topic "..."` (or Create → Templates in the UI).
 
 Extra tools, skills and MCP connectors are added from the Apps page (local catalogue: `apps/catalog.json`, which wins over the registry and is the only place install commands may be defined). What is installed right now is listed in `apps/INSTALLED.md`: read it when choosing how to do a task, and prefer those tools.
 

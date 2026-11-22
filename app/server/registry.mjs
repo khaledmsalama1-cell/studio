@@ -93,6 +93,15 @@ export function registerRegistry(app, { need }) {
     await Promise.all(Object.keys(next).map(refresh));
     return c.json(status());
   });
+  // Brand starters (studio-templates brands/): what the gallery needs, not the whole kit
+  app.get("/api/brand-starters", (c) => {
+    ensureFresh();
+    const list = cached("templates")?.data?.brands || [];
+    return c.json({
+      starters: list.map((e) => ({ id: e.id, name: e.name, industry: e.industry, industryLabel: e.industryLabel, tagline: e.tagline, colors: e.brand?.visual?.colors || {}, fonts: e.brand?.visual?.fonts || {}, logoSvg: e.logoSvg })),
+      status: status().templates,
+    });
+  });
   app.get("/api/templates", (c) => {
     ensureFresh();
     return c.json({ templates: cached("templates")?.data?.templates || [], status: status().templates });

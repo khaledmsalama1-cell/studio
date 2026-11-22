@@ -42,7 +42,7 @@ export default function Home() {
         <Shortcut label="YouTube" onClick={() => openCreate({ entry: "landscape" })} icon={<FormatGlyph brand={brand} w={16} h={9} />} />
         <Shortcut label="Custom size" onClick={() => openCreate({ cat: "custom" })} icon={<Ruler className="size-[22px]" strokeWidth={1.5} />} />
         <Divider />
-        <Shortcut label="Brand" onClick={() => nav("/brands?new=website")} icon={<Palette className="size-[22px]" strokeWidth={1.5} />} />
+        <Shortcut label="Brand" onClick={() => nav("/brands?new=template")} icon={<Palette className="size-[22px]" strokeWidth={1.5} />} />
         <Shortcut label="Research" onClick={() => nav("/research?new=1")} icon={<Radar className="size-[22px]" strokeWidth={1.5} />} />
         <Shortcut label="Voices" onClick={() => nav("/library")} icon={<Headphones className="size-[22px]" strokeWidth={1.5} />} />
         <Shortcut label="Ask Claude" onClick={() => nav("/claude")} icon={<MessageSquareText className="size-[22px]" strokeWidth={1.5} />} />
@@ -60,9 +60,9 @@ export default function Home() {
         )}
       </Section>
 
-      <Section title="Brands" actions={<Link to="/brands?new=website" className="text-body text-cobalt hover:underline">Add a brand</Link>}>
+      <Section title="Brands" actions={<Link to="/brands?new=template" className="text-body text-cobalt hover:underline">Add a brand</Link>}>
         {data?.brands.length === 0 ? (
-          <Empty title="No brands yet" action={<Button variant="primary" onClick={() => nav("/brands?new=website")}>Add your first brand</Button>}>
+          <Empty title="No brands yet" action={<Button variant="primary" onClick={() => nav("/brands?new=template")}>Add your first brand</Button>}>
             Everything you make is styled from a brand: its colours, fonts, voice and audience
           </Empty>
         ) : (

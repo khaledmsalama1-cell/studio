@@ -201,6 +201,37 @@ app.post("/api/brands", async (c) => {
   return c.json({ slug });
 });
 
+// Copy a brand starter from the studio-templates registry into brands/ as the user's own brand
+const SAFE_SVG = (svg) => /^<svg[\s>]/.test(svg) && !/<script|<foreignObject|\son\w+\s*=|href\s*=|url\(|<image|<style/i.test(svg);
+app.post("/api/brands/from-starter", async (c) => {
+  const { starter, name } = await c.req.json();
+  const e = (registryCache("templates")?.data?.brands || []).find((x) => x.id === starter);
+  need(e?.brand, "That brand template isn't synced. Refresh sources on the Apps page");
+  const display = String(name || e.name).trim().slice(0, 80);
+  need(display, "Give the brand a name");
+  let base = display.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || e.id;
+  let slug = base;
+  for (let i = 2; fs.existsSync(path.join(brandsDir, slug)); i++) slug = `${base}-${i}`;
+  execFileSync(node, [script("new-brand.mjs"), display, "--slug", slug], { cwd: ROOT, stdio: "ignore" });
+  const brand = { ...structuredClone(e.brand), name: display, slug, template: e.id };
+  if (display !== e.name) {
+    // Keep the starter's copy, but swap its name for the new one
+    const json = JSON.stringify(brand).split(e.name).join(display);
+    Object.assign(brand, JSON.parse(json), { slug });
+    brand.platforms = Object.fromEntries(Object.entries(brand.platforms || {}).map(([k, v]) => [k, { ...v, handle: v.handle ? `@${slug.replace(/-/g, "")}` : "" }]));
+    brand.hashtags = { ...brand.hashtags, core: [`#${slug.replace(/-/g, "")}`] };
+  }
+  fs.writeFileSync(path.join(brandsDir, slug, "brand.json"), JSON.stringify(brand, null, 2) + "\n");
+  if (SAFE_SVG(String(e.logoSvg || ""))) {
+    // The starter's mark carries its initials; a renamed brand gets its own
+    const initials = (display.match(/[A-Za-z0-9]+/g) || []).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "B";
+    const svg = display === e.name ? e.logoSvg : e.logoSvg.replace(/(<text[^>]*>)[^<]*(<\/text>)/, `$1${initials}$2`);
+    fs.mkdirSync(path.join(brandsDir, slug, "assets/logos"), { recursive: true });
+    fs.writeFileSync(path.join(brandsDir, slug, "assets/logos/logo.svg"), svg);
+  }
+  return c.json({ slug });
+});
+
 app.get("/api/brands/:slug", (c) => {
   const { slug } = c.req.param();
   need(slugOk(slug), "Bad brand");
