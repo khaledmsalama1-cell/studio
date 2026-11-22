@@ -208,10 +208,22 @@ app.get("/api/brands/:slug", (c) => {
   const logoDir = path.join(dir, "assets/logos");
   const logos = fs.existsSync(logoDir) ? fs.readdirSync(logoDir).filter((f) => !f.startsWith(".")).map((f) => ({ name: f, path: `assets/logos/${f}`, url: fileUrl(path.join(logoDir, f)) })) : [];
   const site = readJSON(path.join(dir, "research/site.json"));
+  // Reusable brand media: assets/images, footage and music
+  const media = [];
+  for (const [sub, kind] of [["images", "image"], ["footage", "video"], ["music", "audio"]]) {
+    const d = path.join(dir, "assets", sub);
+    if (!fs.existsSync(d)) continue;
+    for (const f of fs.readdirSync(d)) {
+      if (f.startsWith(".")) continue;
+      const abs = path.join(d, f);
+      if (fs.statSync(abs).isFile()) media.push({ path: `assets/${sub}/${f}`, url: fileUrl(abs), size: fs.statSync(abs).size, kind });
+    }
+  }
   return c.json({
     brand,
     summary: brandSummary(slug),
     logos,
+    media,
     site: site && { source: site.source, fetchedAt: site.fetchedAt, colors: site.colors, fonts: site.fonts, pages: site.pages.length, downloads: site.downloads.map((d) => ({ path: d, url: fileUrl(path.join(dir, d)) })) },
     insights: readText(path.join(dir, "research/social/insights.md")) || null,
   });
@@ -250,6 +262,25 @@ app.post("/api/brands/:slug/logo", async (c) => {
   if (role === "primary" && !brand.visual.logo.mark) brand.visual.logo.mark = `assets/logos/${name}`;
   fs.writeFileSync(bp, JSON.stringify(brand, null, 2) + "\n");
   return c.json({ ok: true, path: `assets/logos/${name}` });
+});
+
+app.post("/api/brands/:slug/assets", async (c) => {
+  const { slug } = c.req.param();
+  need(slugOk(slug) && fs.existsSync(path.join(brandsDir, slug, "brand.json")), "Brand not found");
+  const body = await c.req.parseBody({ all: true });
+  const files = [body.file].flat().filter((f) => f && typeof f !== "string");
+  need(files.length, "Attach at least one file");
+  const saved = [];
+  for (const f of files) {
+    const name = path.basename(f.name).replace(/[^\w.\-]+/g, "-");
+    const sub = /\.(png|jpe?g|webp|gif|svg)$/i.test(name) ? "images" : /\.(mp4|mov|webm)$/i.test(name) ? "footage" : /\.(mp3|wav|m4a|aac|ogg)$/i.test(name) ? "music" : null;
+    need(sub, `${name}: only images, video and audio`);
+    const dest = path.join(brandsDir, slug, "assets", sub, name);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, Buffer.from(await f.arrayBuffer()));
+    saved.push(`assets/${sub}/${name}`);
+  }
+  return c.json({ saved });
 });
 
 app.post("/api/brands/:slug/extract", async (c) => {

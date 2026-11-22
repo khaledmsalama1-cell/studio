@@ -1,18 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Globe, Play, Plus, Radar, Save, Sparkles, Trash2, Upload } from "lucide-react";
-import { api, ago, fmt, type ProjectSummary, type ResearchSummary } from "../lib/api";
+import { BookOpen, Braces, FolderKanban, Globe, Image as ImageIcon, LayoutGrid, Mic, Palette, Play, Plus, Radar, Save, Shapes, Sparkles, Trash2, Type, Upload } from "lucide-react";
+import { api, ago, bytes, fmt, type BrandSummary, type ProjectSummary, type ResearchSummary } from "../lib/api";
 import { useRun } from "../lib/useRun";
+import { PlayButton } from "../lib/player";
 import { useBrandFonts } from "../components/ScenePreview";
-import { Button, Empty, ErrorNote, Field, Input, Panel, Select, Tabs, Textarea, cx } from "../components/ui";
+import { Button, Empty, ErrorNote, Field, Input, Panel, Select, Textarea, cx } from "../components/ui";
 import { Markdown } from "../components/Markdown";
 import { ProjectCard } from "./Projects";
 import { PLATFORM_LABEL } from "./Research";
 
+type MediaFile = { path: string; url: string; size: number; kind: "image" | "video" | "audio" };
 type BrandResp = {
   brand: any;
   logos: { name: string; path: string; url: string }[];
+  media: MediaFile[];
   site: null | { source: string; fetchedAt: string; colors: { brandCandidates: { hex: string; count: number }[]; neutrals: { hex: string }[] }; fonts: { google: string[]; cssFamilies: { family: string }[] }; pages: number; downloads: { path: string; url: string }[] };
   insights: string | null;
 };
@@ -27,21 +30,37 @@ const COLOR_ROLES = [
   ["muted", "Quiet details"],
 ] as const;
 
-type Tab = "identity" | "voice" | "audience" | "research" | "json";
+type Section = "all" | "guidelines" | "logos" | "colors" | "fonts" | "voice" | "media" | "work" | "json";
+const NAV: { id: Section; label: string; icon: ReactNode; group?: string }[] = [
+  { id: "all", label: "All assets", icon: <LayoutGrid /> },
+  { id: "guidelines", label: "Guidelines", icon: <BookOpen /> },
+  { id: "logos", label: "Logos", icon: <Shapes />, group: "Assets" },
+  { id: "colors", label: "Colours", icon: <Palette />, group: "Assets" },
+  { id: "fonts", label: "Fonts & motion", icon: <Type />, group: "Assets" },
+  { id: "voice", label: "Brand voice", icon: <Mic />, group: "Assets" },
+  { id: "media", label: "Photos & media", icon: <ImageIcon />, group: "Assets" },
+  { id: "work", label: "Projects & research", icon: <FolderKanban />, group: "Work" },
+  { id: "json", label: "brand.json", icon: <Braces />, group: "Work" },
+];
 
 export default function BrandDetail() {
   const { slug = "" } = useParams();
+  const [params, setParams] = useSearchParams();
+  const section = (params.get("s") as Section) || "all";
+  const go = (s: Section) => setParams(s === "all" ? {} : { s });
   const qc = useQueryClient();
+  const nav = useNavigate();
   const { data, error } = useQuery({ queryKey: ["brand", slug], queryFn: () => api.get<BrandResp>(`/api/brands/${slug}`) });
+  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
   const [draft, setDraft] = useState<any>(null);
-  const [tab, setTab] = useState<Tab>("identity");
   const [saveErr, setSaveErr] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
   const { run, running } = useRun();
   const original = useRef("");
 
+  useEffect(() => setDraft(null), [slug]);
   useEffect(() => {
-    if (data && (!draft || original.current === JSON.stringify(draft))) {
+    if (data && (!draft || original.current === JSON.stringify(draft) || draft.slug !== data.brand.slug)) {
       setDraft(structuredClone(data.brand));
       original.current = JSON.stringify(data.brand);
     }
@@ -76,31 +95,50 @@ export default function BrandDetail() {
 
   if (error) return <ErrorNote error={error} />;
   if (!draft || !data) return <p className="text-ink-3">Loading…</p>;
-  const c = draft.visual?.colors || {};
-  const f = draft.visual?.fonts || {};
-  const logo = data.logos.find((l) => l.path === (draft.visual?.logo?.mark || draft.visual?.logo?.primary))?.url || data.logos[0]?.url;
   const claudeBusy = running("claude", { brand: slug });
+  const current = NAV.find((n) => n.id === section) || NAV[0];
 
   return (
-    <>
-      <div className="mb-2 text-sm">
-        <Link to="/brands" className="text-ink-3 hover:text-ink">Brands</Link>
-      </div>
-      {/* Hero: the brand rendered in its own identity */}
-      <div className="mb-6 overflow-hidden rounded-[var(--radius-panel)]" style={{ background: c.primary, color: c.secondary }}>
-        <div className="flex flex-wrap items-end justify-between gap-6 p-6 md:p-8">
-          <div className="flex min-w-0 items-center gap-5">
-            {logo && <img src={logo} alt="" className="size-16 flex-none object-contain md:size-20" />}
-            <div className="min-w-0">
-              <h1 className="truncate text-title md:text-[52px]" style={{ fontFamily: `"${f.display?.family}", system-ui`, fontWeight: f.display?.weight || 700, letterSpacing: "-0.03em" }}>
-                {draft.name}
-              </h1>
-              <p className="mt-1 max-w-[60ch] opacity-80" style={{ fontFamily: `"${f.body?.family}", system-ui` }}>{draft.tagline}</p>
+    <div className="grid gap-8 lg:grid-cols-[232px_minmax(0,1fr)]">
+      {/* Brand Kit menu: switch brands, jump between assets */}
+      <aside className="lg:sticky lg:top-0 lg:self-start">
+        <Link to="/brands" className="mb-4 block text-caption text-ink-3 transition-colors duration-150 hover:text-ink">
+          All brands
+        </Link>
+        <label className="mb-4 flex h-12 items-center gap-2.5 rounded-xl border border-line bg-raised pr-2 pl-2.5 transition-colors duration-150 focus-within:border-cobalt hover:border-ink-3/60">
+          <BrandDot brand={draft} logo={data.logos[0]?.url} />
+          <select value={slug} onChange={(e) => nav(`/brands/${e.target.value}${section === "all" ? "" : `?s=${section}`}`)} className="h-full min-w-0 flex-1 cursor-pointer bg-transparent text-body font-medium focus:outline-none focus-visible:outline-none" aria-label="Brand">
+            {(brands || []).map((b) => (
+              <option key={b.slug} value={b.slug}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <nav aria-label="Brand kit" className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-0.5">
+          {NAV.map((n, i) => (
+            <div key={n.id} className="contents">
+              {n.group && n.group !== NAV[i - 1]?.group && <span className="mt-4 mb-1 hidden px-3 text-meta text-ink-3 lg:block">{n.group}</span>}
+              <button
+                onClick={() => go(n.id)}
+                className={cx(
+                  "flex h-9 flex-none items-center gap-2.5 rounded-lg px-3 text-left text-body whitespace-nowrap transition-colors duration-150 [&>svg]:size-[18px] [&>svg]:stroke-[1.5]",
+                  section === n.id ? "bg-raised font-medium text-ink shadow-[inset_0_0_0_1px_var(--line-soft)]" : "text-ink-2 hover:bg-line-soft hover:text-ink"
+                )}
+              >
+                {n.icon}
+                {n.label}
+              </button>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
+          ))}
+        </nav>
+      </aside>
+
+      <div className="min-w-0">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-title">{section === "all" ? "Brand Kit" : current.label}</h1>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant="onColor"
               icon={<Sparkles className="size-4" />}
               busy={!!claudeBusy}
               onClick={() =>
@@ -118,41 +156,265 @@ export default function BrandDetail() {
             </Button>
           </div>
         </div>
-        <div className="flex h-3">
-          {COLOR_ROLES.map(([k]) => (
-            <div key={k} className="flex-1" style={{ background: c[k] }} />
-          ))}
-        </div>
-      </div>
-      <ErrorNote error={saveErr} />
+        <ErrorNote error={saveErr} />
 
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { id: "identity", label: "Look" },
-          { id: "voice", label: "Voice & tone" },
-          { id: "audience", label: "Audience & offer" },
-          { id: "research", label: "Research & projects" },
-          { id: "json", label: "brand.json" },
-        ]}
-      />
-      <div className="mt-6">
-        {tab === "identity" && <Identity draft={draft} set={set} data={data} slug={slug} />}
-        {tab === "voice" && <VoiceTab draft={draft} set={set} />}
-        {tab === "audience" && <Audience draft={draft} set={set} />}
-        {tab === "research" && <ResearchTab slug={slug} data={data} website={draft.website} />}
-        {tab === "json" && <JsonTab draft={draft} setDraft={setDraft} />}
+        {section === "all" && <AllAssets draft={draft} data={data} slug={slug} go={go} />}
+        {section === "guidelines" && (
+          <div className="space-y-6">
+            <NamePanel draft={draft} set={set} />
+            <Audience draft={draft} set={set} />
+          </div>
+        )}
+        {section === "logos" && <LogosSection draft={draft} set={set} data={data} slug={slug} />}
+        {section === "colors" && <ColorsSection draft={draft} set={set} data={data} />}
+        {section === "fonts" && <FontsSection draft={draft} set={set} data={data} />}
+        {section === "voice" && <VoiceTab draft={draft} set={set} />}
+        {section === "media" && <MediaSection data={data} slug={slug} />}
+        {section === "work" && <ResearchTab slug={slug} data={data} website={draft.website} />}
+        {section === "json" && <JsonTab draft={draft} setDraft={setDraft} />}
       </div>
-    </>
+    </div>
   );
 }
 
-// ---------------------------------------------------------------- Look
-function Identity({ draft, set, data, slug }: { draft: any; set: (p: string, v: unknown) => void; data: BrandResp; slug: string }) {
-  const qc = useQueryClient();
+function BrandDot({ brand, logo, size = "size-8" }: { brand: any; logo?: string; size?: string }) {
+  return (
+    <span className={cx("flex flex-none items-center justify-center overflow-hidden rounded-lg", size)} style={{ background: brand.visual?.colors?.primary }}>
+      {logo ? <img src={logo} alt="" className="size-3/4 object-contain" /> : <span style={{ color: brand.visual?.colors?.secondary }}>{brand.name?.[0]}</span>}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------- All assets
+function AllAssets({ draft, data, slug, go }: { draft: any; data: BrandResp; slug: string; go: (s: Section) => void }) {
   const c = draft.visual?.colors || {};
   const f = draft.visual?.fonts || {};
+  const disp = { fontFamily: `"${f.display?.family}", system-ui`, fontWeight: f.display?.weight || 700 } as const;
+  const body = { fontFamily: `"${f.body?.family}", system-ui` } as const;
+  const logo = data.logos.find((l) => l.path === draft.visual?.logo?.primary)?.url || data.logos[0]?.url;
+  const narrator = draft.audio?.voices?.narrator || {};
+  const images = data.media.filter((m) => m.kind === "image");
+  const { data: projects } = useQuery({ queryKey: ["projects", slug], queryFn: () => api.get<ProjectSummary[]>(`/api/projects?brand=${slug}`) });
+  const { data: research } = useQuery({ queryKey: ["research", slug], queryFn: () => api.get<ResearchSummary[]>(`/api/research?brand=${slug}`) });
+  const [sampleErr, setSampleErr] = useState<unknown>(null);
+  const filled = [
+    !!logo,
+    !!c.primary && !!c.accent,
+    !!f.display?.family,
+    !!(draft.voice?.tone?.length && draft.voice?.examples?.length),
+    !!narrator.voice_id,
+    images.length > 0,
+    !!draft.audience?.length && !!draft.content_pillars?.length,
+  ];
+  const done = filled.filter(Boolean).length;
+
+  return (
+    <div className="space-y-8">
+      {/* The brand speaking for itself: its own ground, type, palette and mark */}
+      <section className="grid overflow-hidden rounded-[18px] border border-line-soft bg-surface md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="flex flex-col justify-center gap-4 p-6 md:p-10">
+          <h2 className="text-[28px] leading-tight tracking-[-0.02em]">{draft.name}</h2>
+          <p className="max-w-[46ch] text-body text-ink-2">{draft.essence?.positioning || draft.tagline || "Add a positioning line under Guidelines so every script starts from it"}</p>
+          <div>
+            <div className="mb-2 flex items-center justify-between text-meta text-ink-3">
+              <span>Kit completeness</span>
+              <span className="tabular-nums">
+                {done} of {filled.length}
+              </span>
+            </div>
+            <div className="flex gap-1">
+              {filled.map((ok, i) => (
+                <span key={i} className={cx("h-1.5 flex-1 rounded-full", ok ? "bg-ok" : "bg-line")} />
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Link to={`/projects?new=1&brand=${slug}`}>
+              <Button variant="primary" icon={<Plus className="size-4" />}>
+                Make something on-brand
+              </Button>
+            </Link>
+            {done < filled.length && (
+              <Button onClick={() => go(!filled[0] ? "logos" : !filled[4] ? "voice" : !filled[5] ? "media" : "guidelines")}>Fill the gaps</Button>
+            )}
+          </div>
+        </div>
+        <div className="relative flex min-h-[260px] items-end overflow-hidden p-8" style={{ background: c.primary, color: c.secondary }}>
+          <span className="pointer-events-none absolute -top-10 right-6 text-[180px] leading-none select-none" style={{ ...disp, color: c.accent, letterSpacing: "-0.06em" }} aria-hidden>
+            Aa
+          </span>
+          {logo && <img src={logo} alt="" className="absolute top-6 left-8 size-12 object-contain" />}
+          <div className="relative w-full">
+            <p className="mb-4 max-w-[22ch] text-[28px] leading-[1.05]" style={{ ...disp, letterSpacing: "-0.03em" }}>
+              {draft.tagline || draft.name}
+            </p>
+            <div className="flex h-3 overflow-hidden rounded-full shadow-[0_0_0_1px_rgb(255_255_255/0.18)]">
+              {COLOR_ROLES.map(([k]) => (
+                <span key={k} className="flex-1" style={{ background: c[k] }} />
+              ))}
+            </div>
+            <p className="mt-3 text-meta opacity-70" style={body}>
+              {f.display?.family} · {f.body?.family}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Asset tiles: each one previews the real thing */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-x-5 gap-y-7">
+        <AssetTile label="Logos" note={`${data.logos.length} file${data.logos.length === 1 ? "" : "s"}`} onClick={() => go("logos")}>
+          <div className="grid size-full grid-cols-2">
+            <div className="flex items-center justify-center" style={{ background: c.background }}>{logo ? <img src={logo} alt="" className="size-16 object-contain" /> : <Shapes className="size-8 text-ink-3" />}</div>
+            <div className="flex items-center justify-center" style={{ background: c.primary }}>{logo ? <img src={logo} alt="" className="size-16 object-contain" /> : null}</div>
+          </div>
+        </AssetTile>
+        <AssetTile label="Colours" note="6 roles with contrast checks" onClick={() => go("colors")}>
+          <div className="grid size-full grid-cols-3 grid-rows-2">
+            {COLOR_ROLES.map(([k]) => (
+              <span key={k} className="flex items-end p-2 font-mono text-[10px]" style={{ background: c[k], color: k === "background" || k === "secondary" ? c.ink : c.background }}>
+                {c[k]}
+              </span>
+            ))}
+          </div>
+        </AssetTile>
+        <AssetTile label="Fonts" note={`${f.display?.family || "—"} and ${f.body?.family || "—"}`} onClick={() => go("fonts")}>
+          <div className="flex size-full flex-col justify-end p-5" style={{ background: c.background, color: c.ink }}>
+            <span className="text-[72px] leading-[0.9]" style={{ ...disp, letterSpacing: "-0.05em" }}>
+              Aa
+            </span>
+            <span className="mt-2 truncate text-caption" style={body}>
+              The quick brown fox jumps
+            </span>
+          </div>
+        </AssetTile>
+        <AssetTile label="Brand voice" note={(draft.voice?.tone || []).slice(0, 3).join(", ") || "Tone not set"} onClick={() => go("voice")}>
+          <div className="flex size-full flex-col justify-between p-5" style={{ background: c.secondary, color: c.ink }}>
+            <span className="text-[64px] leading-[0.6]" style={{ ...disp, color: c.accent }}>
+              “
+            </span>
+            <p className="line-clamp-3 text-body leading-snug" style={body}>
+              {draft.voice?.examples?.[0] || "Add example lines that sound exactly like the brand"}
+            </p>
+          </div>
+        </AssetTile>
+        <AssetTile
+          label="Narrator"
+          note={narrator.voice_id ? `${narrator.provider === "kokoro" ? "Kokoro" : "ElevenLabs"} · ${narrator.voice_id.slice(0, 14)}` : "No voice chosen"}
+          onClick={() => go("voice")}
+          overlay={
+            narrator.voice_id && (
+              <div className="absolute right-3 bottom-3" onClick={(e) => e.stopPropagation()}>
+                <PlayButton
+                  title={`${draft.name} narrator`}
+                  subtitle="Brand voice sample"
+                  onBeforePlay={async () => {
+                    setSampleErr(null);
+                    try {
+                      const r = await api.post<{ url: string }>("/api/library/sample", { provider: narrator.provider || "elevenlabs", voiceId: narrator.voice_id, text: draft.voice?.examples?.[0] || draft.tagline, modelId: narrator.model_id, settings: narrator.settings });
+                      return r.url;
+                    } catch (e) {
+                      setSampleErr(e);
+                      return null;
+                    }
+                  }}
+                />
+              </div>
+            )
+          }
+        >
+          <div className="flex size-full items-center justify-center gap-[3px] px-8" style={{ background: c.primary }}>
+            {[14, 28, 44, 30, 56, 38, 22, 48, 34, 18, 40, 26, 12].map((h, i) => (
+              <span key={i} className="w-[5px] rounded-full" style={{ height: h, background: i % 4 === 1 ? c.accent : c.secondary, opacity: 0.9 }} />
+            ))}
+          </div>
+        </AssetTile>
+        <AssetTile label="Photos & media" note={`${data.media.length} file${data.media.length === 1 ? "" : "s"}`} onClick={() => go("media")}>
+          {images.length ? (
+            <div className="grid size-full grid-cols-3 gap-0.5">
+              {images.slice(0, 3).map((m) => (
+                <img key={m.path} src={m.url} alt="" className={cx("size-full object-cover", images.length === 1 && "col-span-3", images.length === 2 && "first:col-span-2")} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex size-full items-center justify-center" style={{ background: c.background }}>
+              <ImageIcon className="size-8" style={{ color: c.muted }} strokeWidth={1.5} />
+            </div>
+          )}
+        </AssetTile>
+        <AssetTile label="Guidelines" note={`${draft.audience?.length || 0} personas · ${draft.content_pillars?.length || 0} pillars`} onClick={() => go("guidelines")}>
+          <div className="flex size-full flex-col justify-center gap-2 p-5" style={{ background: c.background, color: c.ink }}>
+            {(draft.content_pillars || []).slice(0, 3).map((p: any, i: number) => (
+              <div key={i} className="flex items-center gap-2 text-caption" style={body}>
+                <span className="size-2 flex-none rounded-full" style={{ background: i === 0 ? c.accent : c.muted }} />
+                <span className="truncate">{p.name}</span>
+              </div>
+            ))}
+            {!draft.content_pillars?.length && <span className="text-caption opacity-60">No content pillars yet</span>}
+          </div>
+        </AssetTile>
+        <AssetTile label="Projects & research" note={`${projects?.length ?? 0} projects · ${research?.length ?? 0} accounts researched`} onClick={() => go("work")}>
+          <div className="flex size-full items-center justify-center gap-2 bg-stage p-4">
+            {(projects || []).slice(0, 3).map((p) =>
+              p.thumbnail ? (
+                <img key={p.id} src={p.thumbnail} alt="" className="h-[120px] rounded-[4px] object-cover" style={{ aspectRatio: `${p.width} / ${p.height}` }} />
+              ) : (
+                <span key={p.id} className="h-[120px] rounded-[4px]" style={{ aspectRatio: `${p.width} / ${p.height}`, background: p.colors.primary }} />
+              )
+            )}
+            {!projects?.length && <span className="text-caption text-stage-ink/60">Nothing made yet</span>}
+          </div>
+        </AssetTile>
+      </div>
+      <ErrorNote error={sampleErr} />
+      {data.insights && (
+        <Panel title="Latest social insights" actions={<Button size="sm" variant="ghost" onClick={() => go("work")}>Open research</Button>}>
+          <div className="max-h-[320px] overflow-y-auto">
+            <Markdown text={data.insights} />
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+function AssetTile({ label, note, onClick, children, overlay }: { label: string; note: string; onClick: () => void; children: ReactNode; overlay?: ReactNode }) {
+  return (
+    <div className="group">
+      <button onClick={onClick} className="relative block h-[200px] w-full overflow-hidden rounded-xl border border-line-soft text-left transition-[border-color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:border-ink-3/50" aria-label={`Open ${label}`}>
+        {children}
+      </button>
+      {overlay && <div className="pointer-events-none relative -mt-[200px] h-[200px] [&>*]:pointer-events-auto">{overlay}</div>}
+      <div className="mt-2.5 text-body font-medium">{label}</div>
+      <div className="truncate text-meta text-ink-3">{note}</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- sections
+function NamePanel({ draft, set }: { draft: any; set: (p: string, v: unknown) => void }) {
+  return (
+    <Panel title="Name and basics">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Brand name">
+          <Input value={draft.name || ""} onChange={(e) => set("name", e.target.value)} />
+        </Field>
+        <Field label="Website">
+          <Input value={draft.website || ""} onChange={(e) => set("website", e.target.value)} />
+        </Field>
+        <Field label="Tagline" className="sm:col-span-2">
+          <Input value={draft.tagline || ""} onChange={(e) => set("tagline", e.target.value)} />
+        </Field>
+        <Field label="Language" hint="Used for voiceover and captions, e.g. en, ar, es">
+          <Input value={draft.language || ""} onChange={(e) => set("language", e.target.value)} />
+        </Field>
+      </div>
+    </Panel>
+  );
+}
+
+function LogosSection({ draft, set, data, slug }: { draft: any; set: (p: string, v: unknown) => void; data: BrandResp; slug: string }) {
+  const qc = useQueryClient();
+  const c = draft.visual?.colors || {};
   const [upErr, setUpErr] = useState<unknown>(null);
   const upload = async (file: File, role: string) => {
     setUpErr(null);
@@ -167,113 +429,210 @@ function Identity({ draft, set, data, slug }: { draft: any; set: (p: string, v: 
       setUpErr(e);
     }
   };
+  const roles = [
+    ["primary", "Full logo", "Used on light backgrounds and end cards", c.background],
+    ["mark", "Icon / mark", "Small spaces: corner bug, avatars", c.background],
+    ["onDark", "On dark", "Used on the primary colour", c.primary],
+  ] as const;
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-      <Panel title="Name">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Brand name">
-            <Input value={draft.name || ""} onChange={(e) => set("name", e.target.value)} />
-          </Field>
-          <Field label="Website">
-            <Input value={draft.website || ""} onChange={(e) => set("website", e.target.value)} />
-          </Field>
-          <Field label="Tagline" className="sm:col-span-2">
-            <Input value={draft.tagline || ""} onChange={(e) => set("tagline", e.target.value)} />
-          </Field>
-          <Field label="Language" hint="Used for voiceover and captions, e.g. en, ar, es">
-            <Input value={draft.language || ""} onChange={(e) => set("language", e.target.value)} />
-          </Field>
-        </div>
-      </Panel>
+    <div className="space-y-4">
+      <div className="grid gap-5 sm:grid-cols-3">
+        {roles.map(([role, label, hint, bg]) => {
+          const url = data.logos.find((l) => l.path === draft.visual?.logo?.[role])?.url;
+          return (
+            <label key={role} className="group cursor-pointer">
+              <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-line-soft p-8 transition-colors duration-150 group-hover:border-ink-3/50" style={{ background: bg }}>
+                {url ? <img src={url} alt={`${label}`} className="max-h-full max-w-full object-contain" /> : <Upload className="size-6 text-ink-3" />}
+              </div>
+              <div className="mt-2.5 flex items-center justify-between">
+                <span className="text-body font-medium">{label}</span>
+                <span className="text-caption text-cobalt">{url ? "Replace" : "Upload"}</span>
+              </div>
+              <span className="text-meta text-ink-3">{hint}</span>
+              <input type="file" accept=".svg,.png,.jpg,.jpeg,.webp" className="sr-only" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0], role)} />
+            </label>
+          );
+        })}
+      </div>
+      <p className="text-caption text-ink-3">SVG works best. PNG with a transparent background is fine too</p>
+      <ErrorNote error={upErr} />
+    </div>
+  );
+}
 
-      <Panel title="Logo">
-        <div className="grid grid-cols-3 gap-3">
-          {(["primary", "mark", "onDark"] as const).map((role) => {
-            const p = draft.visual?.logo?.[role];
-            const url = data.logos.find((l) => l.path === p)?.url;
-            return (
-              <label key={role} className="group cursor-pointer">
-                <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-line p-3 group-hover:border-ink-3" style={{ background: role === "onDark" ? c.primary : c.background }}>
-                  {url ? <img src={url} alt={`${role} logo`} className="max-h-full max-w-full object-contain" /> : <Upload className="size-5 text-ink-3" />}
-                </div>
-                <span className="mt-1.5 block text-center text-meta text-ink-2">{role === "primary" ? "Full logo" : role === "mark" ? "Icon / mark" : "On dark"}</span>
-                <input type="file" accept=".svg,.png,.jpg,.jpeg,.webp" className="sr-only" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0], role)} />
-              </label>
-            );
-          })}
-        </div>
-        <ErrorNote error={upErr} />
-      </Panel>
-
-      <Panel title="Colours" className="lg:col-span-1">
+function ColorsSection({ draft, set, data }: { draft: any; set: (p: string, v: unknown) => void; data: BrandResp }) {
+  const c = draft.visual?.colors || {};
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <Panel title="Palette">
         <div className="space-y-3">
           {COLOR_ROLES.map(([k, hint]) => (
             <ColorRow key={k} label={k} hint={hint} value={c[k] || "#000000"} onChange={(v) => set(`visual.colors.${k}`, v)} />
           ))}
         </div>
-        <ContrastNotes c={c} />
+      </Panel>
+      <div className="space-y-6">
+        <Panel title="Readability">
+          <ContrastNotes c={c} />
+        </Panel>
         {data.site?.colors?.brandCandidates?.length ? (
-          <div className="mt-5 border-t border-line-soft pt-4">
-            <p className="mb-2 text-caption font-medium text-ink-2">Found on {new URL(data.site.source).hostname}</p>
+          <Panel title={`Found on ${new URL(data.site.source).hostname}`}>
             <div className="flex flex-wrap gap-1.5">
               {[...data.site.colors.brandCandidates, ...data.site.colors.neutrals.slice(0, 4)].map((x) => (
-                <button key={x.hex} title={`Copy ${x.hex}`} onClick={() => navigator.clipboard.writeText(x.hex)} className="flex items-center gap-1.5 rounded-md border border-line-soft bg-raised py-1 pr-2 pl-1 font-mono text-meta hover:border-ink-3">
+                <button key={x.hex} title={`Copy ${x.hex}`} onClick={() => navigator.clipboard.writeText(x.hex)} className="flex items-center gap-1.5 rounded-md border border-line-soft bg-raised py-1 pr-2 pl-1 font-mono text-meta transition-colors duration-150 hover:border-ink-3/60">
                   <span className="size-4 rounded" style={{ background: x.hex }} />
                   {x.hex}
                 </button>
               ))}
             </div>
-          </div>
+          </Panel>
         ) : null}
-      </Panel>
+      </div>
+    </div>
+  );
+}
 
-      <div className="space-y-6">
-        <Panel title="Type">
-          <div className="space-y-5">
-            {(["display", "body"] as const).map((role) => (
-              <div key={role}>
-                <div className="grid grid-cols-[1fr_110px] gap-3">
-                  <Field label={role === "display" ? "Headline font" : "Body font"} hint="Any Google Fonts family name">
-                    <Input value={f[role]?.family || ""} onChange={(e) => set(`visual.fonts.${role}`, { ...f[role], family: e.target.value, google: true })} />
-                  </Field>
-                  <Field label="Weight">
-                    <Select value={f[role]?.weight || (role === "display" ? 700 : 400)} onChange={(e) => set(`visual.fonts.${role}`, { ...f[role], weight: Number(e.target.value) })}>
-                      {[300, 400, 500, 600, 700, 800, 900].map((w) => (
-                        <option key={w}>{w}</option>
-                      ))}
-                    </Select>
-                  </Field>
-                </div>
-                <p className="mt-2 truncate text-[28px] leading-tight" style={{ fontFamily: `"${f[role]?.family}", system-ui`, fontWeight: f[role]?.weight }}>
-                  {role === "display" ? draft.tagline || draft.name : "The quick brown fox jumps over the lazy dog."}
+function FontsSection({ draft, set, data }: { draft: any; set: (p: string, v: unknown) => void; data: BrandResp }) {
+  const f = draft.visual?.fonts || {};
+  const c = draft.visual?.colors || {};
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+      <Panel title="Type">
+        <div className="space-y-6">
+          {(["display", "body"] as const).map((role) => (
+            <div key={role}>
+              <div className="mb-3 rounded-xl px-5 py-6" style={{ background: role === "display" ? c.primary : c.background, color: role === "display" ? c.secondary : c.ink }}>
+                <p className={cx("leading-tight", role === "display" ? "text-[40px]" : "text-lg")} style={{ fontFamily: `"${f[role]?.family}", system-ui`, fontWeight: f[role]?.weight, letterSpacing: role === "display" ? "-0.03em" : 0 }}>
+                  {role === "display" ? draft.tagline || draft.name : draft.voice?.examples?.[0] || "The quick brown fox jumps over the lazy dog."}
                 </p>
               </div>
-            ))}
-            {!!data.site?.fonts && (data.site.fonts.google.length > 0 || data.site.fonts.cssFamilies.length > 0) && (
-              <p className="text-caption text-ink-3">Fonts on the website: {[...data.site.fonts.google, ...data.site.fonts.cssFamilies.map((x) => x.family)].slice(0, 6).join(", ")}</p>
-            )}
-          </div>
-        </Panel>
-        <Panel title="Motion & imagery">
-          <div className="space-y-4">
-            <Field label="Energy" hint="How fast and far things move in videos">
-              <div className="grid grid-cols-3 gap-2">
-                {["calm", "medium", "high"].map((e) => (
-                  <button key={e} onClick={() => set("visual.motion.energy", e)} className={cx("rounded-lg border py-2 text-sm font-medium capitalize", draft.visual?.motion?.energy === e ? "border-ink bg-inverse text-on-inverse" : "border-line bg-raised hover:border-ink-3")}>
-                    {e}
-                  </button>
+              <div className="grid grid-cols-[1fr_110px] gap-3">
+                <Field label={role === "display" ? "Headline font" : "Body font"} hint="Any Google Fonts family name">
+                  <Input value={f[role]?.family || ""} onChange={(e) => set(`visual.fonts.${role}`, { ...f[role], family: e.target.value, google: true })} />
+                </Field>
+                <Field label="Weight">
+                  <Select value={f[role]?.weight || (role === "display" ? 700 : 400)} onChange={(e) => set(`visual.fonts.${role}`, { ...f[role], weight: Number(e.target.value) })}>
+                    {[300, 400, 500, 600, 700, 800, 900].map((w) => (
+                      <option key={w}>{w}</option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+            </div>
+          ))}
+          {!!data.site?.fonts && (data.site.fonts.google.length > 0 || data.site.fonts.cssFamilies.length > 0) && (
+            <p className="text-caption text-ink-3">Fonts on the website: {[...data.site.fonts.google, ...data.site.fonts.cssFamilies.map((x) => x.family)].slice(0, 6).join(", ")}</p>
+          )}
+        </div>
+      </Panel>
+      <Panel title="Motion & imagery">
+        <div className="space-y-4">
+          <Field label="Energy" hint="How fast and far things move in videos">
+            <div className="grid grid-cols-3 gap-2">
+              {["calm", "medium", "high"].map((e) => (
+                <button key={e} onClick={() => set("visual.motion.energy", e)} className={cx("h-10 rounded-lg border text-sm font-medium capitalize transition-colors duration-150", draft.visual?.motion?.energy === e ? "border-ink bg-inverse text-on-inverse" : "border-line bg-raised hover:border-ink-3/60")}>
+                  {e}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Corner radius (px)">
+            <Input type="number" min={0} max={80} value={draft.visual?.radius ?? 24} onChange={(e) => set("visual.radius", Number(e.target.value))} />
+          </Field>
+          <Field label="Photo style" hint="Used when Claude picks or describes imagery">
+            <Textarea rows={4} value={draft.visual?.imagery || ""} onChange={(e) => set("visual.imagery", e.target.value)} />
+          </Field>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function MediaSection({ data, slug }: { data: BrandResp; slug: string }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  const upload = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const fd = new FormData();
+      for (const f of Array.from(files)) fd.append("file", f);
+      await api.post(`/api/brands/${slug}/assets`, fd);
+      qc.invalidateQueries({ queryKey: ["brand", slug] });
+    } catch (e) {
+      setErr(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const groups = [
+    ["image", "Photos", "Product shots and photos reused across projects"],
+    ["video", "Footage", "B-roll for media scenes"],
+    ["audio", "Music", "Licensed tracks for video beds"],
+  ] as const;
+  return (
+    <div className="space-y-8">
+      <label
+        className="flex cursor-pointer flex-col items-center gap-2 rounded-[var(--radius-panel)] border-2 border-dashed border-line bg-surface px-6 py-8 text-center transition-colors duration-150 hover:border-ink-3/60"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => (e.preventDefault(), upload(e.dataTransfer.files))}
+      >
+        <Upload className="size-6 text-ink-3" />
+        <span className="font-medium">{busy ? "Uploading…" : "Drop photos, footage or music for this brand"}</span>
+        <span className="text-caption text-ink-2">Saved in the brand's assets folder, so every project can use them. Only media you own or have a licence for</span>
+        <input type="file" multiple accept="image/*,video/*,audio/*" className="sr-only" onChange={(e) => upload(e.target.files)} />
+      </label>
+      <ErrorNote error={err} />
+      {groups.map(([kind, title, note]) => {
+        const list = data.media.filter((m) => m.kind === kind);
+        return (
+          <section key={kind}>
+            <div className="mb-3">
+              <h2 className="text-lg">{title}</h2>
+              <p className="text-caption text-ink-3">{note}</p>
+            </div>
+            {!list.length ? (
+              <p className="text-body text-ink-3">None yet</p>
+            ) : kind === "audio" ? (
+              <ul className="divide-y divide-line-soft rounded-[var(--radius-panel)] border border-line-soft bg-surface">
+                {list.map((m) => (
+                  <li key={m.path} className="flex items-center gap-4 px-5 py-3">
+                    <PlayButton src={m.url} title={m.path.split("/").pop() || ""} subtitle="Brand music" />
+                    <span className="min-w-0 flex-1 truncate text-body">{m.path.split("/").pop()}</span>
+                    <span className="text-meta text-ink-3">{bytes(m.size)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
+                {list.map((m) => (
+                  <a key={m.path} href={m.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-line-soft bg-surface">
+                    <div className="aspect-square bg-ground">{kind === "image" ? <img src={m.url} alt="" loading="lazy" className="size-full object-cover" /> : <video src={`${m.url}#t=0.5`} preload="metadata" muted className="size-full object-cover" />}</div>
+                    <div className="truncate px-2.5 py-2 text-meta">{m.path.split("/").pop()}</div>
+                  </a>
                 ))}
               </div>
-            </Field>
-            <Field label="Corner radius (px)">
-              <Input type="number" min={0} max={80} value={draft.visual?.radius ?? 24} onChange={(e) => set("visual.radius", Number(e.target.value))} />
-            </Field>
-            <Field label="Photo style">
-              <Textarea rows={3} value={draft.visual?.imagery || ""} onChange={(e) => set("visual.imagery", e.target.value)} />
-            </Field>
+            )}
+          </section>
+        );
+      })}
+      {!!data.site?.downloads.length && (
+        <section>
+          <div className="mb-3">
+            <h2 className="text-lg">From the website scan</h2>
+            <p className="text-caption text-ink-3">Images found on {new URL(data.site.source).hostname}. Check you have the rights before using them</p>
           </div>
-        </Panel>
-      </div>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">
+            {data.site.downloads.map((d) => (
+              <a key={d.path} href={d.url} target="_blank" rel="noreferrer" className="aspect-square overflow-hidden rounded-lg border border-line-soft bg-raised">
+                <img src={d.url} alt="" loading="lazy" className="size-full object-contain" />
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
