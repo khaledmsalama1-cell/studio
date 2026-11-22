@@ -8,6 +8,8 @@
     "node": ">=22"
   },
   "scripts": {
+    "app": "node app/start.mjs",
+    "app:dev": "cd app && npm run dev",
     "brand:new": "node scripts/new-brand.mjs",
     "brand:extract": "node scripts/extract-site.mjs",
     "brand:sync": "node scripts/brand-sync.mjs",

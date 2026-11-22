@@ -17,7 +17,10 @@ git clone <this repo> my-studio && cd my-studio
 npm run doctor                 # checks node, ffmpeg, HyperFrames, keys
 cp .env.example .env           # add ELEVENLABS_API_KEY (optional)
 claude                         # open Claude Code here
+npm run app                    # …or use the web UI: http://127.0.0.1:4317
 ```
+
+**Studio UI** — a local web app for all of it: brand DNA editor, project editor with a live scene strip and one-click voice/build/render, research reports with charts, a Claude chat that drives the repo, and a live job dock. See [docs/app.md](docs/app.md).
 
 Then just ask, or use the slash commands:
 
@@ -89,6 +92,7 @@ brand.json ─► content.json ─► voiceover.mp3 + captions.json ─► index
 │   │   ├── base/                 # index.html skeleton, styles.css, hyperframes.json
 │   │   └── presets/              # reel, promo, landscape, carousel, post, square, story
 │   └── copy/                     # hooks, script frameworks, caption templates, platform specs
+├── app/                          # web UI: server/ (API + jobs + Claude runner), web/ (React)
 ├── engines/
 │   └── remotion/                 # shared Remotion engine (npm run setup:remotion)
 ├── scripts/                      # the CLI behind npm run …
@@ -107,6 +111,7 @@ brand.json ─► content.json ─► voiceover.mp3 + captions.json ─► index
 ```
 
 ## Docs
+- [Studio UI](docs/app.md) — the web app, how it runs jobs and Claude, security model
 - [Setup](docs/setup.md) — ElevenLabs key + MCP, local voice, Remotion, connectors
 - [Social research](docs/social-research.md) — scrapers per platform, Apify / Meta Graph setup, report format
 - [Brand DNA](docs/brand.md) — every brand.json field and where it's used

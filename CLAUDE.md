@@ -58,6 +58,10 @@ Music: put a licensed track at `assets/music.mp3` and set `content.json → musi
 - Spending money (ElevenLabs credits, HeyGen/Canva generation) — say what you're about to generate before large batches.
 - Outputs in `projects/` are git-ignored; brands are committed.
 
+## Studio UI
+
+`npm run app` serves a local web UI (`app/`) that edits the same files and runs the same npm scripts. When Claude is started from the UI, it runs headless: no one can answer questions mid-task, so finish the work and put questions in the final message.
+
 ## Where things are
 
 `brands/` brand DNA + assets + research · `scripts/social/` social scrapers (yt-dlp, Apify, Meta Graph) · `projects/` work in progress + outputs · `templates/hyperframes/` base composition + format presets · `templates/copy/` hook, script and caption frameworks · `engines/remotion/` Remotion engine · `scripts/` CLI · `docs/` deeper guides · `.claude/skills/` the workflows (slash commands) · `.claude/agents/` specialist subagents.

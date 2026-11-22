@@ -19,3 +19,10 @@ brands/*/research/downloads/
 # Social research media (frames/videos of scraped posts) and brand-less research
 brands/*/research/social/*/media/
 /research/
+
+# Studio UI
+app/node_modules/
+app/dist/
+app/.data/
+.ui-snapshots/
+.serena/
