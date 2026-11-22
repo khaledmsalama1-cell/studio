@@ -1,0 +1,102 @@
+{
+  "$schema": "../../docs/brand.schema.json",
+  "name": "Brand Name",
+  "slug": "brand-slug",
+  "tagline": "One line that says what you do and why it matters",
+  "website": "https://example.com",
+  "language": "en",
+
+  "essence": {
+    "mission": "Why the brand exists, in one sentence.",
+    "positioning": "For [audience] who [need], [brand] is the [category] that [key benefit], unlike [alternative].",
+    "values": ["value one", "value two", "value three"],
+    "personality": ["adjective", "adjective", "adjective"],
+    "archetype": "e.g. The Creator, The Sage, The Everyman"
+  },
+
+  "audience": [
+    {
+      "name": "Primary persona",
+      "description": "Who they are in one or two sentences.",
+      "pains": ["pain one", "pain two"],
+      "desires": ["desire one", "desire two"],
+      "objections": ["objection one"],
+      "platforms": ["instagram", "tiktok"]
+    }
+  ],
+
+  "voice": {
+    "tone": ["warm", "direct", "confident"],
+    "do": ["Speak to one person", "Lead with the benefit"],
+    "dont": ["Use jargon", "Overpromise"],
+    "vocabulary": { "use": ["word"], "avoid": ["word"] },
+    "examples": ["A sentence that sounds exactly like the brand."]
+  },
+
+  "visual": {
+    "colors": {
+      "primary": "#1A1A1A",
+      "secondary": "#F2EDE4",
+      "accent": "#E4572E",
+      "background": "#FFFFFF",
+      "ink": "#111111",
+      "muted": "#6B6B6B"
+    },
+    "fonts": {
+      "display": { "family": "Inter", "weight": 800, "google": true },
+      "body": { "family": "Inter", "weight": 400, "google": true }
+    },
+    "logo": {
+      "primary": "assets/logos/logo.svg",
+      "mark": "assets/logos/mark.svg",
+      "onDark": "assets/logos/logo-light.svg"
+    },
+    "radius": 24,
+    "imagery": "Describe the photo style: lighting, subjects, framing, colour grade.",
+    "motion": {
+      "energy": "medium",
+      "ease": "power3.out",
+      "notes": "How things move: snappy cuts vs. slow glides."
+    }
+  },
+
+  "audio": {
+    "voices": {
+      "narrator": {
+        "provider": "elevenlabs",
+        "voice_id": "",
+        "model_id": "eleven_multilingual_v2",
+        "settings": { "stability": 0.45, "similarity_boost": 0.8, "style": 0.3, "use_speaker_boost": true },
+        "description": "Who the voice is: age, accent, energy."
+      }
+    },
+    "music": "Describe the music mood/genre. Put licensed tracks in assets/music/."
+  },
+
+  "products": [
+    {
+      "name": "Product or service",
+      "description": "What it is.",
+      "benefits": ["benefit"],
+      "proof": ["stat, testimonial, award"],
+      "price": ""
+    }
+  ],
+
+  "content_pillars": [
+    { "name": "Educate", "description": "Teach something useful related to the product." },
+    { "name": "Behind the scenes", "description": "Show the people and process." },
+    { "name": "Proof", "description": "Results, reviews, transformations." }
+  ],
+
+  "ctas": ["Shop now", "Link in bio", "Follow for more"],
+
+  "platforms": {
+    "instagram": { "handle": "@brand", "formats": ["reel", "carousel", "post", "story"] },
+    "tiktok": { "handle": "@brand", "formats": ["reel"] },
+    "youtube": { "handle": "@brand", "formats": ["short", "landscape"] },
+    "linkedin": { "handle": "", "formats": ["post", "carousel"] }
+  },
+
+  "hashtags": { "core": ["#brand"], "rotating": [] }
+}

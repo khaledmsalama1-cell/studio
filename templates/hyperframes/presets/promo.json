@@ -1,0 +1,18 @@
+{
+  "format": "promo",
+  "description": "9:16 product promo: hook, product shot, benefits, proof, call to action.",
+  "width": 1080,
+  "height": 1920,
+  "static": false,
+  "bug": false,
+  "captions": { "enabled": true, "wordsPerChunk": 3, "top": 1000 },
+  "voiceover": { "file": "assets/voiceover.mp3", "voice": "narrator", "tail": 1.2 },
+  "music": { "file": "", "volume": 0.12 },
+  "scenes": [
+    { "type": "hook", "text": "Name the *problem*", "say": "Tired of the problem your customer has?", "duration": 2.5 },
+    { "type": "media", "src": "assets/product.jpg", "text": "{{product}}", "sub": "", "say": "Meet the product.", "duration": 3 },
+    { "type": "list", "text": "Why it works", "items": ["Benefit one", "Benefit two", "Benefit three"], "say": "It does this, this, and this.", "duration": 4 },
+    { "type": "stat", "value": "4.9★", "text": "from real customers", "say": "And customers love it.", "duration": 3 },
+    { "type": "cta", "text": "{{cta}}", "button": "Shop now", "say": "Get yours today.", "duration": 3 }
+  ]
+}

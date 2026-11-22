@@ -1,0 +1,15 @@
+{
+  "format": "carousel",
+  "description": "4:5 multi-slide carousel (Instagram / LinkedIn). Each scene is one exported PNG slide.",
+  "width": 1080,
+  "height": 1350,
+  "static": true,
+  "bug": true,
+  "scenes": [
+    { "type": "hook", "text": "Cover slide headline with *one* emphasised word", "sub": "Swipe →" },
+    { "type": "point", "kicker": "01", "text": "First idea", "sub": "One or two lines of supporting detail." },
+    { "type": "point", "kicker": "02", "text": "Second idea", "sub": "One or two lines of supporting detail." },
+    { "type": "point", "kicker": "03", "text": "Third idea", "sub": "One or two lines of supporting detail." },
+    { "type": "cta", "text": "{{cta}}", "sub": "Save this for later" }
+  ]
+}

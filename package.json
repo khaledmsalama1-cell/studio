@@ -1,0 +1,22 @@
+{
+  "name": "brand-content-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "An AI marketing studio run by Claude Code: brand DNA, campaigns, short-form video (HyperFrames / Remotion), ElevenLabs voice, carousels and posts.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "brand:new": "node scripts/new-brand.mjs",
+    "brand:extract": "node scripts/extract-site.mjs",
+    "brand:sync": "node scripts/brand-sync.mjs",
+    "new": "node scripts/new-project.mjs",
+    "voice": "node scripts/voiceover.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/preview.mjs",
+    "render": "node scripts/render.mjs",
+    "variants": "node scripts/variants.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "setup:remotion": "cd engines/remotion && npm install",
+    "setup:voice": "uv venv .venv-voice --python 3.12 && uv pip install --python .venv-voice/bin/python kokoro-onnx soundfile"
+  }
+}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="brand.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!--
+      Built by scripts/build.mjs from content.json + captions.json + brand.css.
+      Everything between @build markers is regenerated on every build.
+      To hand-craft a project, delete the markers and edit freely (the build then leaves it alone).
+    -->
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="10"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- @build:scenes:start -->
+      <!-- @build:scenes:end -->
+
+      <!-- @build:captions:start -->
+      <!-- @build:captions:end -->
+
+      <!-- @build:audio:start -->
+      <!-- @build:audio:end -->
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      // @build:timeline:start
+      // @build:timeline:end
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

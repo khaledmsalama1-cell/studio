@@ -1,0 +1,102 @@
+{
+  "$schema": "../../docs/brand.schema.json",
+  "name": "Ember & Oak Coffee",
+  "slug": "example-coffee",
+  "tagline": "Small-batch coffee, roasted the slow way.",
+  "website": "https://example.com",
+  "language": "en",
+
+  "essence": {
+    "mission": "Make the morning ritual feel worth slowing down for.",
+    "positioning": "For home brewers who care about flavour, Ember & Oak is the neighbourhood roaster that ships beans within 48 hours of roasting, unlike supermarket coffee that sits on shelves for months.",
+    "values": ["craft", "freshness", "honesty"],
+    "personality": ["warm", "unhurried", "quietly expert"],
+    "archetype": "The Creator"
+  },
+
+  "audience": [
+    {
+      "name": "The weekend brewer",
+      "description": "25-40, owns a pour-over or espresso machine, follows coffee creators, buys beans online.",
+      "pains": ["Stale beans", "Inconsistent shots", "Overwhelmed by tasting notes"],
+      "desires": ["Café-quality coffee at home", "Learning the craft", "Supporting small makers"],
+      "objections": ["Specialty coffee is too expensive"],
+      "platforms": ["instagram", "tiktok", "youtube"]
+    }
+  ],
+
+  "voice": {
+    "tone": ["warm", "plain-spoken", "curious"],
+    "do": ["Explain one idea at a time", "Use sensory words", "Sound like a friendly barista"],
+    "dont": ["Coffee snobbery", "ALL CAPS hype", "Emoji walls"],
+    "vocabulary": { "use": ["fresh", "slow", "small-batch", "brew"], "avoid": ["artisanal", "elevate", "game-changer"] },
+    "examples": ["Fresh beans taste like fruit. Old beans taste like cardboard. That's the whole secret."]
+  },
+
+  "visual": {
+    "colors": {
+      "primary": "#2B1D14",
+      "secondary": "#F3E9DC",
+      "accent": "#D9822B",
+      "background": "#F8F3EC",
+      "ink": "#1E140E",
+      "muted": "#8A7563"
+    },
+    "fonts": {
+      "display": { "family": "Fraunces", "weight": 700, "google": true },
+      "body": { "family": "DM Sans", "weight": 400, "google": true }
+    },
+    "logo": {
+      "primary": "assets/logos/logo.svg",
+      "mark": "assets/logos/logo.svg",
+      "onDark": "assets/logos/logo.svg"
+    },
+    "radius": 28,
+    "imagery": "Warm morning light, close-ups of hands and steam, matte brown and cream tones, shallow depth of field.",
+    "motion": {
+      "energy": "calm",
+      "ease": "power2.out",
+      "notes": "Slow fades and gentle rises. Nothing bounces."
+    }
+  },
+
+  "audio": {
+    "voices": {
+      "narrator": {
+        "provider": "elevenlabs",
+        "voice_id": "",
+        "model_id": "eleven_multilingual_v2",
+        "settings": { "stability": 0.55, "similarity_boost": 0.8, "style": 0.2, "use_speaker_boost": true },
+        "description": "Calm, friendly, 30s, light British accent, sounds like a barista talking across the counter."
+      }
+    },
+    "music": "Lo-fi acoustic guitar, 80-90 BPM, warm and unobtrusive."
+  },
+
+  "products": [
+    {
+      "name": "The Morning Blend",
+      "description": "Medium roast, Brazil + Ethiopia blend.",
+      "benefits": ["Chocolate and berry notes", "Forgiving for any brew method"],
+      "proof": ["4.9 stars from 1,200 reviews"],
+      "price": "$18 / 340g"
+    }
+  ],
+
+  "content_pillars": [
+    { "name": "Brew better", "description": "Quick tips that make home coffee taste better." },
+    { "name": "From the roastery", "description": "Behind the scenes of roasting and sourcing." },
+    { "name": "Customer rituals", "description": "Reposts and stories of how people brew." }
+  ],
+
+  "ctas": ["Get fresh beans", "Link in bio", "Save this for tomorrow's brew"],
+
+  "platforms": {
+    "instagram": { "handle": "@emberandoak", "formats": ["reel", "carousel", "post", "story"] },
+    "tiktok": { "handle": "@emberandoak", "formats": ["reel"] },
+    "youtube": { "handle": "@emberandoak", "formats": ["short"] },
+    "linkedin": { "handle": "", "formats": [] }
+  },
+
+  "hashtags": { "core": ["#emberandoak", "#specialtycoffee"], "rotating": ["#pourover", "#homebarista", "#coffeetime"] }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "studio-remotion-engine",
+  "private": true,
+  "type": "module",
+  "description": "Shared Remotion engine. Projects pass their content/captions as --props and their folder as --public-dir (see scripts/render.mjs).",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.545",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.545"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}

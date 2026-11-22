@@ -1,0 +1,18 @@
+{
+  "format": "reel",
+  "description": "9:16 short-form video (Reels, TikTok, Shorts) with voiceover and word-timed captions.",
+  "width": 1080,
+  "height": 1920,
+  "static": false,
+  "bug": false,
+  "captions": { "enabled": true, "wordsPerChunk": 3, "top": 1000 },
+  "voiceover": { "file": "assets/voiceover.mp3", "voice": "narrator", "tail": 1.2 },
+  "music": { "file": "", "volume": 0.12 },
+  "scenes": [
+    { "type": "hook", "text": "The hook goes *here*", "sub": "", "say": "Stop scrolling. This one thing changes everything.", "duration": 2.5 },
+    { "type": "point", "kicker": "01", "text": "First point", "say": "First, the thing your audience gets wrong.", "duration": 3 },
+    { "type": "point", "kicker": "02", "text": "Second point", "say": "Second, the simple fix.", "duration": 3 },
+    { "type": "point", "kicker": "03", "text": "Third point", "say": "Third, the result they'll notice.", "duration": 3 },
+    { "type": "cta", "text": "{{cta}}", "sub": "", "button": "", "say": "Follow for more.", "duration": 3 }
+  ]
+}

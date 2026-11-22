@@ -1,0 +1,11 @@
+{
+  "format": "square",
+  "description": "Single 1:1 post.",
+  "width": 1080,
+  "height": 1080,
+  "static": true,
+  "bug": true,
+  "scenes": [
+    { "type": "quote", "text": "A customer quote or a punchy line.", "author": "Customer name" }
+  ]
+}

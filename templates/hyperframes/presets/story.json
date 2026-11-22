@@ -1,0 +1,13 @@
+{
+  "format": "story",
+  "description": "9:16 story frames (Instagram / Facebook stories). Each scene is one PNG frame.",
+  "width": 1080,
+  "height": 1920,
+  "static": true,
+  "bug": true,
+  "scenes": [
+    { "type": "hook", "text": "Story opener", "sub": "Tap →" },
+    { "type": "stat", "value": "48h", "text": "from roast to your door" },
+    { "type": "cta", "text": "{{cta}}", "button": "Link in bio" }
+  ]
+}

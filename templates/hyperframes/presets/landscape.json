@@ -1,0 +1,16 @@
+{
+  "format": "landscape",
+  "description": "16:9 video for YouTube / LinkedIn / website, with voiceover and captions.",
+  "width": 1920,
+  "height": 1080,
+  "static": false,
+  "bug": false,
+  "captions": { "enabled": true, "wordsPerChunk": 5, "top": 800 },
+  "voiceover": { "file": "assets/voiceover.mp3", "voice": "narrator", "tail": 1.5 },
+  "music": { "file": "", "volume": 0.1 },
+  "scenes": [
+    { "type": "hook", "text": "Landscape opener", "say": "Here's what this video is about.", "duration": 3 },
+    { "type": "list", "text": "Three things", "items": ["One", "Two", "Three"], "say": "Three things you need to know.", "duration": 5 },
+    { "type": "cta", "text": "{{cta}}", "say": "Subscribe for more.", "duration": 3 }
+  ]
+}

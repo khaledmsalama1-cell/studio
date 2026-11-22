@@ -1,0 +1,17 @@
+node_modules/
+.env
+.venv-voice/
+.claude/settings.local.json
+.mcp.json
+
+# Work in progress and renders live in projects/ — keep them out of the template repo
+projects/*
+!projects/.gitkeep
+
+# Tool caches
+.hyperframes/
+.remotion-props.json
+engines/remotion/out/
+brands/*/research/downloads/
+*.log
+.DS_Store

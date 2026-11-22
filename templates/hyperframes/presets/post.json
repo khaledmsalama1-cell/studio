@@ -1,0 +1,11 @@
+{
+  "format": "post",
+  "description": "Single 4:5 feed post (Instagram, Facebook, LinkedIn).",
+  "width": 1080,
+  "height": 1350,
+  "static": true,
+  "bug": true,
+  "scenes": [
+    { "type": "hook", "text": "One strong *statement*", "sub": "A supporting line." }
+  ]
+}
