@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 export type ThemePref = "system" | "light" | "dark";
 const KEY = "studio-theme";
@@ -18,20 +18,33 @@ export function applyTheme(pref: ThemePref) {
   document.documentElement.classList.toggle("dark", dark);
 }
 
+// One shared preference: every useTheme() (sidebar switch, Settings) and every open tab sees the same value
+const subs = new Set<() => void>();
+const notify = () => subs.forEach((f) => f());
+function subscribe(f: () => void) {
+  subs.add(f);
+  const m = media();
+  const onOs = () => readPref() === "system" && applyTheme("system");
+  const onStorage = (e: StorageEvent) => e.key === KEY && (applyTheme(readPref()), notify());
+  m.addEventListener("change", onOs);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    subs.delete(f);
+    m.removeEventListener("change", onOs);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
 /** Theme preference that follows the OS until the person picks light or dark. */
 export function useTheme() {
-  const [pref, setPref] = useState<ThemePref>(readPref);
-  useEffect(() => {
-    applyTheme(pref);
+  const pref = useSyncExternalStore(subscribe, readPref);
+  const setPref = (p: ThemePref) => {
     try {
-      if (pref === "system") localStorage.removeItem(KEY);
-      else localStorage.setItem(KEY, pref);
+      if (p === "system") localStorage.removeItem(KEY);
+      else localStorage.setItem(KEY, p);
     } catch {}
-    if (pref !== "system") return;
-    const m = media();
-    const onChange = () => applyTheme("system");
-    m.addEventListener("change", onChange);
-    return () => m.removeEventListener("change", onChange);
-  }, [pref]);
+    applyTheme(p);
+    notify();
+  };
   return [pref, setPref] as const;
 }

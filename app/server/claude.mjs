@@ -18,9 +18,17 @@ export const DEFAULT_CLAUDE = {
   model: "",
 };
 
+// Defaults for new work, editable in Settings → Studio defaults
+export const DEFAULT_STUDIO = {
+  engine: "hyperframes", // video engine preselected when creating a project
+  voiceProvider: "auto", // when a brand has no voice provider: auto = ElevenLabs if connected, else Kokoro
+  variants: [], // extra sizes preselected when rendering (1x1, 4x5, 16x9)
+  autoSync: true, // refresh the app/template registries once a day
+};
+
 export function getSettings() {
   const s = readJSON(SETTINGS, {});
-  return { claude: { ...DEFAULT_CLAUDE, ...(s.claude || {}) } };
+  return { claude: { ...DEFAULT_CLAUDE, ...(s.claude || {}) }, studio: { ...DEFAULT_STUDIO, ...(s.studio || {}) } };
 }
 
 export function saveSettings(next) {

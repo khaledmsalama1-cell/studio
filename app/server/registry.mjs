@@ -6,7 +6,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { DATA, readJSON } from "./paths.mjs";
-import { saveSettings } from "./claude.mjs";
+import { getSettings, saveSettings } from "./claude.mjs";
 
 const run = promisify(execFile);
 const DIR = path.join(DATA, "registry");
@@ -58,7 +58,8 @@ export function ensureFresh() {
   const src = sources();
   for (const k of KINDS) {
     const c = cached(k);
-    if (!c?.data || c.repo !== src[k] || Date.now() - new Date(c.fetchedAt || 0).getTime() > STALE_MS) refresh(k);
+    const stale = getSettings().studio.autoSync && Date.now() - new Date(c?.fetchedAt || 0).getTime() > STALE_MS;
+    if (!c?.data || c.repo !== src[k] || stale) refresh(k);
   }
 }
 

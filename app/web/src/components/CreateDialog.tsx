@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Clapperboard, ExternalLink, Film, Images, LayoutGrid, LayoutTemplate, MessageSquareText, Ruler, Search, Smartphone, Sparkles, X } from "lucide-react";
-import { api, type BrandSummary, type Meta, type Scene } from "../lib/api";
+import { api, type BrandSummary, type Meta, type Scene, type SettingsData } from "../lib/api";
 import { useRun } from "../lib/useRun";
 import { SceneFrame, Stage } from "./ScenePreview";
 import { Button, ErrorNote, Field, Input, Select, Textarea, cx } from "./ui";
@@ -282,7 +282,11 @@ function Details({ entry, brand, brands, setBrand, preset, custom, remotion, onB
   const [name, setName] = useState("");
   // A search like "reel" or "pinterest" is a format, not a topic; only a real description carries over
   const [about, setAbout] = useState(idea.trim().split(/\s+/).length >= 3 ? idea.trim() : "");
+  const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: () => api.get<SettingsData>("/api/settings"), staleTime: 60_000 });
   const [engine, setEngine] = useState("hyperframes");
+  useEffect(() => {
+    if (settings) setEngine(settings.studio.engine);
+  }, [settings]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const nav = useNavigate();

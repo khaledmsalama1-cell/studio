@@ -205,3 +205,12 @@ export const ago = (t: number | string | null | undefined) => {
   return new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 };
 export const bytes = (n: number) => (n > 1e6 ? (n / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB");
+
+export type StudioDefaults = { engine: "hyperframes" | "remotion"; voiceProvider: "auto" | "elevenlabs" | "kokoro"; variants: string[]; autoSync: boolean };
+export type SettingsData = {
+  env: Record<string, string | null>;
+  claude: { permissionMode: string; allowedTools: string[]; model: string };
+  studio: StudioDefaults;
+  defaultClaude: { allowedTools: string[] };
+  defaultStudio: StudioDefaults;
+};

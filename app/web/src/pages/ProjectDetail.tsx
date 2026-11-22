@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, Copy, Download, ExternalLink, Film, Hammer, Mic, Plus, Save, ScanEye, Sparkles, Trash2, Upload } from "lucide-react";
-import { api, bytes, type JobSummary, type ProjectDetail as PD, type Scene } from "../lib/api";
+import { api, bytes, type JobSummary, type ProjectDetail as PD, type Scene, type SettingsData } from "../lib/api";
 import { useRun } from "../lib/useRun";
 import { useJobs } from "../components/Layout";
 import { SceneFrame, Stage } from "../components/ScenePreview";
@@ -227,7 +227,11 @@ function Pipeline({ isStatic, engine, data, totalWords, busy, onVoice, onBuild, 
   onVoice: (b: object) => void; onBuild: () => void; onFrames: () => void; onRender: (v: string[]) => void; onPreview: () => Promise<JobSummary | null | undefined>; brandVoice?: { provider?: string; voice_id?: string };
 }) {
   const [provider, setProvider] = useState(brandVoice?.provider || "elevenlabs");
+  const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: () => api.get<SettingsData>("/api/settings"), staleTime: 60_000 });
   const [variants, setVariants] = useState<string[]>([]);
+  useEffect(() => {
+    if (settings) setVariants(settings.studio.variants);
+  }, [settings]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const hf = engine === "hyperframes";
   const secs = totalWords / 2.8;
