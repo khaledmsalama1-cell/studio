@@ -15,3 +15,7 @@ engines/remotion/out/
 brands/*/research/downloads/
 *.log
 .DS_Store
+
+# Social research media (frames/videos of scraped posts) and brand-less research
+brands/*/research/social/*/media/
+/research/

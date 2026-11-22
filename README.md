@@ -2,6 +2,7 @@
 
 An open, scriptable AI marketing studio you run from **Claude Code** — the same idea as Google Pomelli (website → brand DNA → on-brand campaigns), extended to **short-form video**.
 
+- **Social research** on Instagram, TikTok, YouTube and Facebook: what performs, the hooks of top videos, competitor gaps
 - **Brand DNA** from a website, or a brand built from scratch (strategy, palette, type, logo, voice)
 - **Campaign ideas** and content calendars generated from that DNA
 - **Short-form video** (Reels, TikTok, Shorts, landscape) rendered with **HyperFrames** or **Remotion**
@@ -24,6 +25,7 @@ Then just ask, or use the slash commands:
 |---|---|
 | `/brand-dna https://yourbrand.com` | Scrapes the site, builds `brands/<slug>/brand.json` (colours, fonts, logo, tone, audience, products, pillars) |
 | `/brand-create` | Builds a new brand from an idea: positioning → identity directions → logo → voice → brand board |
+| `/social-research <platform> @handle` | Scrapes recent posts (yours or competitors'), ranks what works, extracts the hooks of top videos, writes recommendations |
 | `/campaign <brand> <goal>` | 3–5 campaign concepts → pick one → produces every asset |
 | `/short-video <brand> <topic>` | Script → voiceover → captions → motion → MP4 |
 | `/static-post <brand> <topic>` | Carousel / post / story PNGs |
@@ -38,6 +40,8 @@ Try it with the bundled fictional brand: *"/short-video example-coffee 3 signs y
 ```bash
 npm run brand:new -- "Acme Studio" --url https://acme.com
 npm run brand:extract -- https://acme.com --brand acme-studio
+npm run social -- tiktok @acme --brand acme-studio                      # also instagram, youtube, facebook
+npm run social:hooks -- brands/acme-studio/research/social/tiktok-acme --top 5
 npm run new -- --brand acme-studio --format reel --name launch-teaser   # [--engine remotion]
 # edit projects/acme-studio/<date>-launch-teaser/content.json
 npm run voice -- projects/acme-studio/<date>-launch-teaser             # [--provider kokoro | --audio take.wav]
@@ -59,6 +63,7 @@ brand.json ─► content.json ─► voiceover.mp3 + captions.json ─► index
 ├── .claude/
 │   ├── skills/                   # workflows = slash commands
 │   │   ├── brand-dna/            # website → brand DNA
+│   │   ├── social-research/      # IG / TikTok / YouTube / Facebook analysis
 │   │   ├── brand-create/         # new brand from scratch
 │   │   ├── campaign/             # ideas → asset plan → production
 │   │   ├── short-video/          # reels / tiktok / shorts / landscape
@@ -77,7 +82,7 @@ brand.json ─► content.json ─► voiceover.mp3 + captions.json ─► index
 │   ├── _template/                # copied by brand:new
 │   │   ├── brand.json
 │   │   ├── assets/{logos,fonts,images,footage,music}/
-│   │   └── research/
+│   │   └── research/             # site.json, social/<platform>-<handle>/ reports
 │   └── example-coffee/           # fictional demo brand
 ├── templates/
 │   ├── hyperframes/
@@ -88,6 +93,7 @@ brand.json ─► content.json ─► voiceover.mp3 + captions.json ─► index
 │   └── remotion/                 # shared Remotion engine (npm run setup:remotion)
 ├── scripts/                      # the CLI behind npm run …
 │   ├── new-brand.mjs  extract-site.mjs  brand-sync.mjs
+│   ├── social/                   # scrape.mjs, analyze.mjs, hooks.mjs, providers/{ytdlp,apify,graph}.mjs
 │   ├── new-project.mjs  voiceover.mjs  build.mjs
 │   ├── preview.mjs  render.mjs  variants.mjs  doctor.mjs
 │   └── lib/
@@ -102,11 +108,12 @@ brand.json ─► content.json ─► voiceover.mp3 + captions.json ─► index
 
 ## Docs
 - [Setup](docs/setup.md) — ElevenLabs key + MCP, local voice, Remotion, connectors
+- [Social research](docs/social-research.md) — scrapers per platform, Apify / Meta Graph setup, report format
 - [Brand DNA](docs/brand.md) — every brand.json field and where it's used
 - [Engines](docs/engines.md) — how HyperFrames/Remotion projects are built and rendered
 - [Extending](docs/extending.md) — add formats, scene types, workflows, voice providers
 
 ## Requirements
-Node ≥ 22, ffmpeg. Optional: ElevenLabs API key, `uv` (local Kokoro voice), Remotion (company license needed above Remotion's free-tier size).
+Node ≥ 22, ffmpeg. Optional: yt-dlp (social research), ElevenLabs API key, `uv` (local Kokoro voice), Remotion (company license needed above Remotion's free-tier size).
 
 Use only footage, music, fonts and voices you have the rights to. Clone voices only with the speaker's consent.

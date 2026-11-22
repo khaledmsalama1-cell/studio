@@ -14,7 +14,7 @@ Goal: a complete, accurate `brands/<slug>/brand.json` that every later asset is 
    `npm run brand:new -- "<Brand Name>" --url <url>` (guess the name from the URL if not given; confirm later).
 2. **Scrape raw signals** — `npm run brand:extract -- <url> --brand <slug>` → `research/site.json` + `research/downloads/`.
    - If the site blocks it or is JS-rendered (few pages/empty text), use the Chrome browser tools (claude-in-chrome) or the web-fetch agent to read the homepage, about and product pages, and save notes to `research/notes.md`.
-   - Optionally also check the brand's Instagram/TikTok bio and top posts if the user gives handles.
+   - If the brand has social accounts, run `/social-research` on them (e.g. `npm run social -- tiktok @handle --brand <slug>`): bios, top posts and captions are strong evidence for tone of voice, pillars and what the audience responds to.
 3. **Look at the images** in `research/downloads/` (Read them). Pick the real logo; copy it to `assets/logos/logo.<ext>` (SVG preferred). If only a favicon exists, note it and ask the user for a proper logo file later.
 4. **Interpret** (this is the part that needs judgement — delegate to the `brand-strategist` agent for a big site):
    - **Colours**: from `colors.brandCandidates` + the logo, choose primary / secondary / accent / background / ink / muted. Check ink-on-background and secondary-on-primary contrast are readable (≥ 4.5:1 for body text).

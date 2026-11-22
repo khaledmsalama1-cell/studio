@@ -11,6 +11,7 @@ brand  ──►  plan  ──►  write  ──►  voice  ──►  build  �
 brand.json  campaign/brief  content.json  captions.json  index.html   hyperframes check   out/*.mp4|png   caption.md
 ```
 
+0. **Research** (optional but recommended) — `/social-research` pulls the brand's and competitors' recent posts (Instagram, TikTok, YouTube, Facebook), ranks what performs and extracts the hooks of the winners. Base campaign ideas on `brands/<slug>/research/social/insights.md` when it exists.
 1. **Brand** — every project belongs to a brand in `brands/<slug>/brand.json`. No brand yet? Run `/brand-dna <url>` (existing business) or `/brand-create` (new brand). Never invent colours, fonts or tone that contradict brand.json.
 2. **Plan** — `/campaign` for multi-asset ideas, `/content-calendar` for a schedule. Single assets go straight to step 3.
 3. **Write** — `npm run new -- --brand <slug> --format <format> --name <name>` scaffolds `projects/<brand>/<date>-<name>/`. Fill `brief.md`, then write `content.json` scenes. Each video scene's `say` is its voiceover line; `text` is the on-screen words (shorter than `say`).
@@ -59,4 +60,4 @@ Music: put a licensed track at `assets/music.mp3` and set `content.json → musi
 
 ## Where things are
 
-`brands/` brand DNA + assets · `projects/` work in progress + outputs · `templates/hyperframes/` base composition + format presets · `templates/copy/` hook, script and caption frameworks · `engines/remotion/` Remotion engine · `scripts/` CLI · `docs/` deeper guides · `.claude/skills/` the workflows (slash commands) · `.claude/agents/` specialist subagents.
+`brands/` brand DNA + assets + research · `scripts/social/` social scrapers (yt-dlp, Apify, Meta Graph) · `projects/` work in progress + outputs · `templates/hyperframes/` base composition + format presets · `templates/copy/` hook, script and caption frameworks · `engines/remotion/` Remotion engine · `scripts/` CLI · `docs/` deeper guides · `.claude/skills/` the workflows (slash commands) · `.claude/agents/` specialist subagents.

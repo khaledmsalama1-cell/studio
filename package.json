@@ -4,11 +4,16 @@
   "private": true,
   "type": "module",
   "description": "An AI marketing studio run by Claude Code: brand DNA, campaigns, short-form video (HyperFrames / Remotion), ElevenLabs voice, carousels and posts.",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "brand:new": "node scripts/new-brand.mjs",
     "brand:extract": "node scripts/extract-site.mjs",
     "brand:sync": "node scripts/brand-sync.mjs",
+    "social": "node scripts/social/scrape.mjs",
+    "social:analyze": "node scripts/social/analyze.mjs",
+    "social:hooks": "node scripts/social/hooks.mjs",
     "new": "node scripts/new-project.mjs",
     "voice": "node scripts/voiceover.mjs",
     "build": "node scripts/build.mjs",

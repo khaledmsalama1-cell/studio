@@ -6,7 +6,7 @@ argument-hint: <brand-slug> <goal / product / occasion>
 
 # Campaign
 
-1. **Load** `brands/<slug>/brand.json`. If the goal mentions a product, find it in `products`. Unknown facts (dates, discounts) → ask.
+1. **Load** `brands/<slug>/brand.json` and, if present, `research/social/insights.md` (what performs for the brand and competitors). If the goal mentions a product, find it in `products`. Unknown facts (dates, discounts) → ask.
 2. **Ideate** (use the `creative-director` agent): 3–5 campaign concepts. For each:
    - name + one-line idea, which persona and pillar, the insight it plays on
    - hero asset (usually a `reel`) + supporting assets (carousel / post / story)
