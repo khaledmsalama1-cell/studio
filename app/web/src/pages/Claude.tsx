@@ -1,153 +1,428 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Plus } from "lucide-react";
-import { api, ago, type BrandSummary } from "../lib/api";
+import { ArrowUp, Check, ChevronLeft, ChevronRight, Clapperboard, History, Mic, Palette, Plus, Radar, X } from "lucide-react";
+import { api, ago, type BrandSummary, type Meta, type ProjectSummary } from "../lib/api";
 import { useJob } from "../lib/jobs";
 import { useRun } from "../lib/useRun";
 import { useJobs } from "../components/Layout";
 import { ClaudeEvents } from "../components/ClaudeThread";
-import { Button, ErrorNote, Select, Textarea, cx } from "../components/ui";
+import { ENTRIES, Thumb, type Entry } from "../components/CreateDialog";
+import { ErrorNote, cx } from "../components/ui";
 
 type Thread = { id: string; title: string; started: number; updated: number; status: string; sessionId: string | null; jobs: string[] };
+type Tab = { key: string; thread?: string }; // thread = first job id, or the session id once known
+type Ctx = { kind: "brand" | "project"; id: string; label: string };
+
+const TABS_KEY = "studio-chat-tabs";
+const loadTabs = (): Tab[] => {
+  try {
+    const t = JSON.parse(localStorage.getItem(TABS_KEY) || "[]");
+    return Array.isArray(t) && t.length ? t : [{ key: "new-1" }];
+  } catch {
+    return [{ key: "new-1" }];
+  }
+};
 
 const STARTERS = (b: string) => [
-  { label: "Campaign ideas", text: `Use the campaign skill for brand ${b}: give me 3–5 campaign concepts for this month. Don't produce assets yet.` },
-  { label: "Content calendar", text: `Use the content-calendar skill for brand ${b}: plan the next 2 weeks, 4 posts a week.` },
+  { label: "Plan this month", text: `Use the content-calendar skill for brand ${b}: plan the next 4 weeks, 4 posts a week, balanced across the content pillars.` },
+  { label: "Campaign ideas", text: `Use the campaign skill for brand ${b}: give me 3–5 campaign concepts. Don't produce assets yet.` },
   { label: "Three reels", text: `Use the short-video skill for brand ${b}: make 3 reels from the brand's content pillars. Write scripts, record voiceovers, build, check frames and render.` },
-  { label: "Carousel", text: `Use the static-post skill for brand ${b}: make a 6-slide carousel teaching one useful thing to the brand's audience, and export it.` },
-  { label: "Cast a voice", text: `Use the voice skill for brand ${b}: shortlist 3 ElevenLabs voices that fit the brand and save the best one to brand.json.` },
   { label: "Competitor scan", text: `Use the social-research skill for brand ${b}: suggest 3 competitors on TikTok, research them and write insights.` },
 ];
+
+// What each tile starts the prompt with; the person finishes the sentence
+const ASK: Record<string, string> = {
+  reel: "Make a reel about ",
+  promo: "Make a product promo video for ",
+  short: "Make a YouTube Short about ",
+  carousel: "Make a 6-slide carousel about ",
+  post: "Make a feed post about ",
+  square: "Make a square post about ",
+  quote: "Turn this into a quote card: ",
+  story: "Make story frames for ",
+  landscape: "Make a YouTube video about ",
+  "linkedin-video": "Make a LinkedIn video about ",
+  brand: "Help me create a new brand. Here's the idea: ",
+  research: "Research these accounts and tell me what works for them: ",
+};
 
 export default function Claude() {
   const location = useLocation() as { state?: { prompt?: string } };
   const qc = useQueryClient();
   const { data: threads } = useQuery({ queryKey: ["conversations"], queryFn: () => api.get<Thread[]>("/api/conversations"), refetchInterval: 4000 });
   const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
-  const [active, setActive] = useState<string | null>(null);
-  const [brand, setBrand] = useState("");
-  const [text, setText] = useState(location.state?.prompt || "");
-  const { run, error, pending } = useRun();
   const { jobs } = useJobs();
-  const thread = threads?.find((t) => t.id === active);
-  const busy = thread && jobs.find((j) => thread.jobs.includes(j.id) && j.status === "running");
+  const { run, error, pending } = useRun();
+
+  const [tabs, setTabs] = useState<Tab[]>(loadTabs);
+  const [active, setActive] = useState(() => tabs[0].key);
+  const [brand, setBrand] = useState("");
+  const [ctx, setCtx] = useState<Ctx[]>([]);
+  // Each tab keeps its own unsent draft
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const input = useRef<HTMLTextAreaElement>(null);
   const autoSent = useRef(false);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(TABS_KEY, JSON.stringify(tabs));
+    } catch {}
+  }, [tabs]);
   useEffect(() => {
     if (!brand && brands?.length) setBrand(brands[0].slug);
   }, [brands, brand]);
 
-  const send = async (prompt: string) => {
-    if (!prompt.trim()) return;
-    const job = await run("/api/claude", { prompt, sessionId: thread?.sessionId || undefined, meta: { brand: brand || undefined } }, { openDock: false });
-    setText("");
-    if (job) {
-      await qc.invalidateQueries({ queryKey: ["conversations"] });
-      if (!thread) setActive(job.id);
-    }
+  const threadOf = (t?: Tab) => (t?.thread ? threads?.find((x) => x.id === t.thread || x.jobs.includes(t.thread!)) : undefined);
+  const tab = tabs.find((t) => t.key === active) || tabs[0];
+  const thread = threadOf(tab);
+  const busy = !!thread && jobs.some((j) => thread.jobs.includes(j.id) && j.status === "running");
+  const brandObj = brands?.find((b) => b.slug === brand) || brands?.[0];
+  const text = drafts[tab.key] || "";
+  const setText = (v: string) => setDrafts((d) => ({ ...d, [tab.key]: v }));
+
+  const newTab = () => {
+    const key = `new-${Date.now()}`;
+    setTabs((t) => [...t, { key }]);
+    setActive(key);
+    setCtx([]);
   };
-  // Prompts handed over from the home page start right away
+  const closeTab = (key: string) => {
+    const i = tabs.findIndex((x) => x.key === key);
+    const rest = tabs.filter((x) => x.key !== key);
+    const next = rest.length ? rest : [{ key: `new-${Date.now()}` }];
+    setTabs(next);
+    if (key === active) setActive(next[Math.max(0, i - 1)]?.key || next[0].key);
+  };
+  const openThread = (th: Thread) => {
+    const existing = tabs.find((t) => threadOf(t)?.id === th.id);
+    if (existing) return setActive(existing.key);
+    const key = `t-${th.id}`;
+    setTabs((t) => [...t, { key, thread: th.id }]);
+    setActive(key);
+  };
+
+  const send = async (prompt: string, tabKey = tab.key, existing = thread) => {
+    if (!prompt.trim()) return;
+    const context = ctx.map((c) => (c.kind === "project" ? `(Project: projects/${c.id})` : `(Brand: brands/${c.id})`)).join("\n");
+    const full = [prompt.trim(), context].filter(Boolean).join("\n\n");
+    const job = await run("/api/claude", { prompt: full, sessionId: existing?.sessionId || undefined, title: prompt.trim().split("\n")[0].slice(0, 70), meta: { brand: brand || undefined } }, { openDock: false });
+    if (!job) return;
+    setDrafts((d) => ({ ...d, [tabKey]: "" }));
+    setCtx([]);
+    if (!existing) setTabs((t) => t.map((x) => (x.key === tabKey ? { ...x, thread: job.id } : x)));
+    qc.invalidateQueries({ queryKey: ["conversations"] });
+  };
+  // A prompt handed over from Home or Create starts right away in a fresh tab
   useEffect(() => {
-    if (location.state?.prompt && !autoSent.current) {
+    const p = location.state?.prompt;
+    if (p && !autoSent.current) {
       autoSent.current = true;
-      send(location.state.prompt);
+      const key = `new-${Date.now()}`;
+      setTabs((t) => [...t, { key }]);
+      setActive(key);
+      send(p, key, undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // A new conversation's id switches from job id to session id once Claude reports it
-  useEffect(() => {
-    if (active && threads && !threads.find((t) => t.id === active)) {
-      const t = threads.find((x) => x.jobs.includes(active));
-      if (t) setActive(t.id);
-    }
-  }, [threads, active]);
+
+  const pickTile = (id: string, name: string) => {
+    setText(ASK[id] || `Make a ${name.toLowerCase()} about `);
+    // after React has rendered the new text, put the cursor at its end so the topic can be typed straight away
+    setTimeout(() => {
+      const el = input.current;
+      if (el) (el.focus(), el.setSelectionRange(el.value.length, el.value.length));
+    }, 30);
+  };
+
+  const composer = (
+    <Composer text={text} setText={setText} onSend={() => send(text)} busy={busy} pending={pending} inputRef={input} brands={brands || []} brand={brand} setBrand={setBrand} ctx={ctx} setCtx={setCtx} big={!thread} locked={!!thread} />
+  );
 
   return (
-    <div className="grid h-[calc(100vh-150px)] min-h-[520px] gap-4 md:grid-cols-[260px_1fr]">
-      <aside className="flex min-h-0 flex-col rounded-[var(--radius-panel)] border border-line-soft bg-surface max-md:hidden">
-        <div className="p-3">
-          <Button className="w-full" icon={<Plus className="size-4" />} onClick={() => setActive(null)}>
-            New conversation
-          </Button>
+    <div className="flex h-[calc(100vh-112px)] min-h-[560px] flex-col">
+      {/* Chat tabs */}
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
+          {tabs.map((t) => {
+            const th = threadOf(t);
+            const on = t.key === tab.key;
+            const live = !!th && jobs.some((j) => th.jobs.includes(j.id) && j.status === "running");
+            return (
+              <div key={t.key} className={cx("flex h-10 w-[220px] flex-none items-center gap-2 rounded-xl pr-1.5 pl-3.5 transition-colors duration-150", on ? "bg-inverse text-on-inverse" : "bg-surface text-ink-2 hover:bg-line-soft hover:text-ink")}>
+                <button onClick={() => setActive(t.key)} className="flex min-w-0 flex-1 items-center gap-2 text-left text-body">
+                  {live && <span className="live-dot !size-1.5 flex-none !shadow-none" />}
+                  <span className="truncate">{th?.title || (t.thread ? "Starting…" : "New chat")}</span>
+                </button>
+                <button onClick={() => closeTab(t.key)} className={cx("flex size-7 flex-none items-center justify-center rounded-lg transition-colors duration-150", on ? "hover:bg-on-inverse/15" : "hover:bg-line")} aria-label="Close tab">
+                  <X className="size-4" />
+                </button>
+              </div>
+            );
+          })}
+          <button onClick={newTab} className="flex size-10 flex-none items-center justify-center rounded-xl text-ink-2 transition-colors duration-150 hover:bg-line-soft hover:text-ink" aria-label="New chat">
+            <Plus className="size-5" />
+          </button>
         </div>
-        <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-          {threads?.map((t) => (
-            <li key={t.id}>
-              <button onClick={() => setActive(t.id)} className={cx("w-full rounded-lg px-3 py-2 text-left", active === t.id ? "bg-inverse text-on-inverse" : "hover:bg-line-soft")}>
-                <span className="flex items-center gap-2">
-                  {t.status === "running" && <span className="live-dot flex-none" />}
-                  <span className="truncate text-caption font-medium">{t.title}</span>
-                </span>
-                <span className={cx("text-meta", active === t.id ? "text-on-inverse/60" : "text-ink-3")}>
-                  {ago(t.updated)} · {t.jobs.length} {t.jobs.length === 1 ? "turn" : "turns"}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </aside>
+        <HistoryMenu threads={threads || []} onOpen={openThread} />
+      </div>
 
-      <section className="flex min-h-0 flex-col rounded-[var(--radius-panel)] border border-line-soft bg-surface">
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 md:px-8">
-          {thread ? (
-            <div className="mx-auto max-w-[760px] space-y-6 py-6">
-              {thread.jobs.map((id) => (
+      {tab.thread ? (
+        <div className="flex min-h-0 flex-1 flex-col rounded-[18px] border border-line-soft bg-surface">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 md:px-8">
+            <div className="mx-auto max-w-[780px] space-y-6 py-6">
+              {(thread?.jobs || [tab.thread]).map((id) => (
                 <Turn key={id} id={id} />
               ))}
             </div>
-          ) : (
-            <div className="mx-auto max-w-[680px] py-12">
-              <h1 className="text-title font-medium">What should we make?</h1>
-              <p className="mt-2 text-ink-2">
-                Claude works in this studio with its skills and specialists: it can research accounts, write scripts, record voiceovers, build and render. Tasks run in the background — you can leave this page.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {STARTERS(brand || "<brand>").map((s) => (
-                  <button key={s.label} onClick={() => setText(s.text)} className="rounded-full border border-line bg-raised px-3.5 py-1.5 text-caption hover:border-ink-3">
-                    {s.label}
-                  </button>
-                ))}
-              </div>
+          </div>
+          <div className="border-t border-line-soft p-3 md:p-4">
+            <div className="mx-auto max-w-[780px]">
+              <ErrorNote error={error} />
+              {composer}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="flex flex-1 flex-col items-center justify-center px-2 py-8">
+            <h1 className="mb-6 text-center text-[36px] leading-[1.05] tracking-[-0.03em] md:text-[44px]">What should Claude make today?</h1>
+            <div className="w-full max-w-[860px]">
+              <ErrorNote error={error} />
+              {composer}
+            </div>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {STARTERS(brand || "<brand>").map((s) => (
+                <button key={s.label} onClick={() => (setText(s.text), input.current?.focus())} className="h-9 rounded-full border border-line-soft bg-surface px-4 text-caption text-ink-2 transition-colors duration-150 hover:border-ink-3/50 hover:text-ink">
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {brandObj && <FormatRow brand={brandObj} onPick={pickTile} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- composer
+function Composer({ text, setText, onSend, busy, pending, inputRef, brands, brand, setBrand, ctx, setCtx, big, locked }: {
+  text: string; setText: (s: string) => void; onSend: () => void; busy: boolean; pending: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  brands: BrandSummary[]; brand: string; setBrand: (s: string) => void; ctx: Ctx[]; setCtx: (c: Ctx[]) => void; big: boolean; locked: boolean;
+}) {
+  const [menu, setMenu] = useState(false);
+  const { data: projects } = useQuery({ queryKey: ["projects", ""], queryFn: () => api.get<ProjectSummary[]>("/api/projects"), enabled: menu });
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setMenu(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menu]);
+  const b = brands.find((x) => x.slug === brand);
+  const add = (c: Ctx) => {
+    if (!ctx.some((x) => x.kind === c.kind && x.id === c.id)) setCtx([...ctx, c]);
+    setMenu(false);
+  };
+
+  return (
+    <div className="rounded-2xl border border-line bg-raised shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-colors duration-150 focus-within:border-cobalt focus-within:ring-4 focus-within:ring-cobalt/15">
+      {ctx.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-4 pt-3">
+          {ctx.map((c) => (
+            <span key={c.kind + c.id} className="flex h-7 items-center gap-1.5 rounded-lg bg-line-soft pr-1 pl-2.5 text-caption">
+              {c.kind === "brand" ? <Palette className="size-3.5 text-ink-3" /> : <Clapperboard className="size-3.5 text-ink-3" />}
+              {c.label}
+              <button onClick={() => setCtx(ctx.filter((x) => x !== c))} className="rounded p-0.5 text-ink-3 hover:text-ink" aria-label={`Remove ${c.label}`}>
+                <X className="size-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <textarea
+        ref={inputRef}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey && !busy) {
+            e.preventDefault();
+            onSend();
+          }
+        }}
+        rows={big ? 3 : 2}
+        placeholder={busy ? "Claude is working. You can send a follow-up when it finishes" : big ? "Describe what you want to make, and Claude will make it" : "Reply"}
+        className={cx("block w-full resize-none bg-transparent px-5 text-ui placeholder:text-ink-3 focus:outline-none focus-visible:outline-none", big ? "min-h-[96px] pt-4" : "min-h-[56px] pt-3")}
+        aria-label="Message Claude"
+      />
+      <div className="flex items-center gap-2 px-3 pb-3">
+        <div ref={box} className="relative">
+          <button onClick={() => setMenu(!menu)} className="flex size-9 items-center justify-center rounded-lg text-ink-2 transition-colors duration-150 hover:bg-line-soft hover:text-ink" aria-label="Add a brand or project" aria-expanded={menu}>
+            <Plus className="size-5" />
+          </button>
+          {menu && (
+            <div className="absolute bottom-full left-0 z-30 mb-2 max-h-[320px] w-[280px] overflow-y-auto rounded-xl border border-line-soft bg-raised py-1.5 shadow-float">
+              <p className="px-4 pt-1 pb-1 text-meta text-ink-3">Give Claude a brand</p>
+              {brands.map((x) => (
+                <button key={x.slug} onClick={() => add({ kind: "brand", id: x.slug, label: x.name })} className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-body transition-colors duration-100 hover:bg-line-soft">
+                  <span className="size-4 rounded-full" style={{ background: x.colors.primary, boxShadow: `inset 0 0 0 3px ${x.colors.accent}` }} />
+                  {x.name}
+                </button>
+              ))}
+              <p className="mt-1 border-t border-line-soft px-4 pt-2 pb-1 text-meta text-ink-3">Or a project to work on</p>
+              {(projects || []).slice(0, 8).map((p) => (
+                <button key={p.brand + p.id} onClick={() => add({ kind: "project", id: `${p.brand}/${p.id}`, label: p.name })} className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-body transition-colors duration-100 hover:bg-line-soft">
+                  <Clapperboard className="size-4 text-ink-3" strokeWidth={1.5} />
+                  <span className="truncate">{p.name}</span>
+                  <span className="ml-auto text-meta text-ink-3">{p.format}</span>
+                </button>
+              ))}
             </div>
           )}
         </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send(text);
-          }}
-          className="border-t border-line-soft p-3 md:p-4"
-        >
-          <ErrorNote error={error} />
-          <div className="mx-auto flex max-w-[760px] items-end gap-2">
-            {!thread && (
-              <Select value={brand} onChange={(e) => setBrand(e.target.value)} className="w-40 flex-none" aria-label="Brand">
-                <option value="">No brand</option>
-                {brands?.map((b) => (
-                  <option key={b.slug} value={b.slug}>
-                    {b.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-            <Textarea
-              rows={2}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send(text);
-                }
-              }}
-              placeholder={busy ? "Claude is working — you can queue a follow-up after it finishes" : thread ? "Reply…" : "Describe what you want…"}
-              className="min-h-[44px] resize-none"
-            />
-            <Button type="submit" variant="primary" disabled={!text.trim() || !!busy} busy={pending} icon={<ArrowUp className="size-4" />} aria-label="Send" className="h-11 w-11 flex-none px-0" />
-          </div>
-        </form>
-      </section>
+        {!locked && brands.length > 0 && (
+          <label className="flex h-9 items-center gap-2 rounded-lg border border-line-soft pr-1 pl-2.5 text-caption text-ink-2 transition-colors duration-150 hover:border-ink-3/50">
+            {b && <span className="size-3.5 flex-none rounded-full" style={{ background: b.colors.primary, boxShadow: `inset 0 0 0 3px ${b.colors.accent}` }} />}
+            <select value={brand} onChange={(e) => setBrand(e.target.value)} className="h-full cursor-pointer bg-transparent pr-1 focus:outline-none focus-visible:outline-none" aria-label="Brand">
+              <option value="">No brand</option>
+              {brands.map((x) => (
+                <option key={x.slug} value={x.slug}>
+                  {x.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <span className="flex-1" />
+        <MicButton onText={(t) => setText(text ? `${text} ${t}` : t)} />
+        <button onClick={onSend} disabled={!text.trim() || busy || pending} className="flex size-9 items-center justify-center rounded-lg bg-cobalt-fill text-white transition-[background-color,transform,opacity] duration-150 hover:bg-cobalt-fill-hover active:scale-95 disabled:opacity-40" aria-label="Send">
+          <ArrowUp className="size-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Dictation through the browser's speech recognition; hidden where the browser doesn't have it */
+function MicButton({ onText }: { onText: (t: string) => void }) {
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const [on, setOn] = useState(false);
+  const [err, setErr] = useState("");
+  const rec = useRef<any>(null);
+  if (!SR) return null;
+  const toggle = () => {
+    if (on) return rec.current?.stop();
+    setErr("");
+    const r = new SR();
+    r.lang = navigator.language || "en-US";
+    r.interimResults = false;
+    r.onresult = (e: any) => onText(Array.from(e.results).map((x: any) => x[0].transcript).join(" "));
+    r.onerror = (e: any) => setErr(e.error === "network" || e.error === "not-allowed" || e.error === "service-not-allowed" ? "Voice input isn't available in this browser" : "Didn't catch that");
+    r.onend = () => setOn(false);
+    rec.current = r;
+    r.start();
+    setOn(true);
+  };
+  return (
+    <span className="flex items-center gap-2">
+      {err && <span className="text-meta text-ink-3">{err}</span>}
+      <button onClick={toggle} className={cx("flex size-9 items-center justify-center rounded-lg transition-colors duration-150", on ? "bg-danger-soft text-danger" : "text-ink-2 hover:bg-line-soft hover:text-ink")} aria-label={on ? "Stop dictation" : "Dictate"} aria-pressed={on}>
+        <Mic className="size-[18px]" strokeWidth={1.5} />
+      </button>
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------- history
+function HistoryMenu({ threads, onOpen }: { threads: Thread[]; onOpen: (t: Thread) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  return (
+    <div ref={box} className="relative flex-none">
+      <button onClick={() => setOpen(!open)} className="flex h-10 items-center gap-2 rounded-xl px-3 text-body text-ink-2 transition-colors duration-150 hover:bg-line-soft hover:text-ink" aria-expanded={open}>
+        <History className="size-[18px]" strokeWidth={1.5} />
+        History
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 z-30 mt-2 max-h-[420px] w-[340px] overflow-y-auto rounded-xl border border-line-soft bg-raised py-1.5 shadow-float">
+          {threads.length === 0 && <p className="px-4 py-3 text-caption text-ink-3">No conversations yet</p>}
+          {threads.map((t) => (
+            <button key={t.id} onClick={() => (onOpen(t), setOpen(false))} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100 hover:bg-line-soft">
+              {t.status === "running" ? <span className="live-dot flex-none" /> : <Check className="size-4 flex-none text-ink-3" />}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-body">{t.title}</span>
+                <span className="block text-meta text-ink-3">
+                  {ago(t.updated)} · {t.jobs.length} {t.jobs.length === 1 ? "turn" : "turns"}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- format row
+const ROW = ["reel", "carousel", "post", "story", "landscape", "promo", "quote", "square", "short", "linkedin-video"];
+const TOOLS = [
+  { id: "brand", name: "New brand", icon: <Palette className="size-8" strokeWidth={1.25} /> },
+  { id: "research", name: "Research", icon: <Radar className="size-8" strokeWidth={1.25} /> },
+];
+
+function FormatRow({ brand, onPick }: { brand: BrandSummary; onPick: (id: string, name: string) => void }) {
+  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: () => api.get<Meta>("/api/meta") });
+  const sizes = useMemo(() => Object.fromEntries((meta?.formats || []).map((f) => [f.id, f])), [meta]);
+  const row = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
+  const update = () => {
+    const el = row.current;
+    if (el) setEdge({ start: el.scrollLeft < 8, end: el.scrollLeft + el.clientWidth > el.scrollWidth - 8 });
+  };
+  useEffect(update, [meta]);
+  const entries = ROW.map((id) => ENTRIES.find((e) => e.id === id)).filter(Boolean) as Entry[];
+  const scroll = (d: number) => row.current?.scrollBy({ left: d * (row.current.clientWidth - 160), behavior: "smooth" });
+  return (
+    <div className="relative mt-4 flex-none border-t border-line-soft pt-6">
+      <div ref={row} onScroll={update} className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {entries.map((e) => {
+          const w = sizes[e.preset]?.width || 1080;
+          const h = sizes[e.preset]?.height || 1920;
+          return (
+            <button key={e.id} onClick={() => onPick(e.id, e.name)} className="group flex w-[150px] flex-none flex-col items-center gap-3 rounded-xl py-3 transition-colors duration-150 hover:bg-surface">
+              <span className="flex h-[118px] items-center transition-transform duration-200 group-hover:-translate-y-1">
+                <Thumb entry={e} brand={brand} w={w} h={h} height={w > h ? 72 : 110} />
+              </span>
+              <span className="text-body font-medium">{e.name}</span>
+            </button>
+          );
+        })}
+        {TOOLS.map((t) => (
+          <button key={t.id} onClick={() => onPick(t.id, t.name)} className="group flex w-[150px] flex-none flex-col items-center gap-3 rounded-xl py-3 text-ink-2 transition-colors duration-150 hover:bg-surface hover:text-ink">
+            <span className="flex h-[118px] items-center">
+              <span className="flex size-20 items-center justify-center rounded-2xl border border-line-soft bg-surface transition-transform duration-200 group-hover:-translate-y-1">{t.icon}</span>
+            </span>
+            <span className="text-body font-medium">{t.name}</span>
+          </button>
+        ))}
+      </div>
+      {!edge.start && (
+        <button onClick={() => scroll(-1)} className="absolute top-[86px] -left-2 flex size-10 items-center justify-center rounded-full border border-line-soft bg-raised shadow-float" aria-label="Scroll back">
+          <ChevronLeft className="size-5" />
+        </button>
+      )}
+      {!edge.end && (
+        <button onClick={() => scroll(1)} className="absolute top-[86px] -right-2 flex size-10 items-center justify-center rounded-full border border-line-soft bg-raised shadow-float" aria-label="Scroll forward">
+          <ChevronRight className="size-5" />
+        </button>
+      )}
     </div>
   );
 }

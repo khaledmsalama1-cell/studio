@@ -9,7 +9,7 @@ import { Button, ErrorNote, Field, Input, Select, Textarea, cx } from "./ui";
 
 // ---------------------------------------------------------------- catalogue
 export type Cat = "for-you" | "short" | "social" | "stories" | "long" | "custom" | "idea";
-type Entry = {
+export type Entry = {
   id: string;
   preset: string;
   name: string;
@@ -22,7 +22,7 @@ type Entry = {
 };
 
 const product = (b: BrandSummary) => b.tagline?.split(/[.,]/)[0] || b.name;
-const ENTRIES: Entry[] = [
+export const ENTRIES: Entry[] = [
   { id: "reel", preset: "reel", name: "Reel", note: "Instagram, TikTok, Shorts", cats: ["for-you", "short"], keywords: "reel instagram tiktok short vertical video 9:16", look: "phone", sample: () => ({ type: "hook", text: "3 things nobody *tells* you", say: "Stop scrolling, this one matters" }) },
   { id: "promo", preset: "promo", name: "Product promo", note: "Hook, product, proof, call to action", cats: ["for-you", "short"], keywords: "promo product ad advert launch sale video", look: "phone", sample: () => ({ type: "stat", value: "4.9★", text: "from real customers", say: "And people love it" }) },
   { id: "tiktok", preset: "reel", name: "TikTok video", note: "9:16 with captions", cats: ["short"], keywords: "tiktok video vertical", look: "phone", sample: () => ({ type: "point", kicker: "01", text: "The mistake everyone makes", say: "First, the mistake everyone makes" }) },
@@ -175,7 +175,7 @@ export function CreateDialog({ open, onClose, defaultBrand, start }: { open: boo
 }
 
 // ---------------------------------------------------------------- tiles: real frames in the brand's identity
-function Thumb({ entry, brand, w, h, height = 150 }: { entry: Entry; brand: BrandSummary; w: number; h: number; height?: number }) {
+export function Thumb({ entry, brand, w, h, height = 150 }: { entry: Entry; brand: BrandSummary; w: number; h: number; height?: number }) {
   const width = Math.round((height * w) / h);
   const scene = entry.sample(brand);
   const isStatic = entry.look === "stack" || entry.look === "flat" || entry.look === "story";
