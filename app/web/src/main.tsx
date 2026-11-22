@@ -14,6 +14,8 @@ import ResearchDetail from "./pages/ResearchDetail";
 import Claude from "./pages/Claude";
 import Jobs from "./pages/Jobs";
 import Settings from "./pages/Settings";
+import Library from "./pages/Library";
+import { PlayerProvider } from "./lib/player";
 
 const qc = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: true, staleTime: 2000, retry: 1 } } });
 
@@ -26,6 +28,7 @@ const router = createBrowserRouter([
       { path: "/brands/:slug", element: <BrandDetail /> },
       { path: "/projects", element: <Projects /> },
       { path: "/projects/:brand/:id", element: <ProjectDetail /> },
+      { path: "/library", element: <Library /> },
       { path: "/research", element: <Research /> },
       { path: "/research/:brand/:key", element: <ResearchDetail /> },
       { path: "/claude", element: <Claude /> },
@@ -39,7 +42,9 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={qc}>
-      <RouterProvider router={router} />
+      <PlayerProvider>
+        <RouterProvider router={router} />
+      </PlayerProvider>
     </QueryClientProvider>
   </StrictMode>
 );

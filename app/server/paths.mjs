@@ -7,7 +7,7 @@ export const ROOT = path.resolve(APP, "..");
 export const DATA = path.join(APP, ".data");
 
 // Only these top-level folders are ever served or written through the API.
-const SERVABLE = ["brands", "projects", "research"];
+const SERVABLE = ["brands", "projects", "research", "library"];
 
 /** Resolve a repo-relative path and refuse anything outside the servable folders. */
 export function safePath(rel) {

@@ -26,3 +26,6 @@ app/dist/
 app/.data/
 .ui-snapshots/
 .serena/
+
+# Library: imported media and generated voice samples stay local
+library/

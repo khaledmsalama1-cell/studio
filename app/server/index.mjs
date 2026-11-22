@@ -10,6 +10,7 @@ import { streamSSE } from "hono/streaming";
 import { ROOT, APP, safePath, slugOk, readJSON, readText, fileUrl } from "./paths.mjs";
 import { startJob, cancelJob, getJob, listJobs, subscribe, summary, waitFor } from "./jobs.mjs";
 import { runClaude, getSettings, saveSettings, DEFAULT_CLAUDE } from "./claude.mjs";
+import { registerLibrary } from "./library.mjs";
 
 const PORT = Number(process.env.PORT || 4317);
 const DEV = process.argv.includes("--dev");
@@ -592,6 +593,9 @@ app.get("/files/*", (c) => {
   }
   return new Response(fs.createReadStream(abs), { headers: { ...headers, "content-length": String(size) } });
 });
+
+// ---------------------------------------------------------------- library (voices, renders, imported media)
+registerLibrary(app, { need, bad });
 
 // ---------------------------------------------------------------- UI
 const dist = path.join(APP, "dist");

@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { NavLink, Outlet } from "react-router";
-import { ChevronUp, Clapperboard, LayoutGrid, ListChecks, MessageSquareText, Monitor, Moon, Palette, Radar, Settings, Sun } from "lucide-react";
+import { ChevronUp, Clapperboard, Headphones, LayoutGrid, ListChecks, MessageSquareText, Monitor, Moon, Palette, Radar, Settings, Sun } from "lucide-react";
 import { useTheme } from "../lib/theme";
+import { NowPlaying } from "../lib/player";
 import { useJobFeed } from "../lib/jobs";
 import type { JobSummary } from "../lib/api";
 import { JobLog, Duration } from "./JobLog";
@@ -15,6 +16,7 @@ const NAV = [
   { to: "/", label: "Today", icon: LayoutGrid, end: true },
   { to: "/brands", label: "Brands", icon: Palette },
   { to: "/projects", label: "Projects", icon: Clapperboard },
+  { to: "/library", label: "Library", icon: Headphones },
   { to: "/research", label: "Research", icon: Radar },
   { to: "/claude", label: "Ask Claude", icon: MessageSquareText },
   { to: "/jobs", label: "Activity", icon: ListChecks },
@@ -38,6 +40,7 @@ export function Layout() {
               <Outlet />
             </div>
           </main>
+          <NowPlaying />
           <Dock jobs={jobs} open={open} setOpen={setOpen} expanded={dock} setExpanded={setDock} />
         </div>
       </div>
