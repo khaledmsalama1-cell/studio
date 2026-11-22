@@ -15,7 +15,7 @@ export default function Brands() {
     <>
       <PageHeader
         title="Brands"
-        subtitle="Each brand's DNA — colours, type, voice, audience — styles every reel, post and caption made for it."
+        subtitle="Each brand's DNA — colours, type, voice, audience — styles every reel, post and caption made for it"
         actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setParams({ new: "website" })}>
             Add brand
@@ -41,7 +41,7 @@ export function BrandCard({ b }: { b: BrandSummary }) {
           <div className="truncate text-[28px] leading-none" style={{ fontFamily: `"${b.fonts.display?.family}", system-ui`, fontWeight: b.fonts.display?.weight || 700 }}>
             {b.name}
           </div>
-          {b.tagline && <div className="mt-2 line-clamp-1 text-[13px] opacity-80" style={{ fontFamily: `"${b.fonts.body?.family}", system-ui` }}>{b.tagline}</div>}
+          {b.tagline && <div className="mt-2 line-clamp-1 text-caption opacity-80" style={{ fontFamily: `"${b.fonts.body?.family}", system-ui` }}>{b.tagline}</div>}
         </div>
       </div>
       <div className="flex h-2">
@@ -49,7 +49,7 @@ export function BrandCard({ b }: { b: BrandSummary }) {
           <div key={k} className="flex-1" style={{ background: (c as Record<string, string>)[k] }} />
         ))}
       </div>
-      <div className="flex items-center justify-between px-5 py-3 text-[13px] text-ink-2">
+      <div className="flex items-center justify-between px-5 py-3 text-caption text-ink-2">
         <span>
           {b.projects} {b.projects === 1 ? "project" : "projects"} · {b.research} research
         </span>
@@ -106,7 +106,7 @@ function NewBrandDialog({ open, onClose, initialMode }: { open: boolean; onClose
     <Dialog open={open} onClose={onClose} title="Add a brand">
       <div className="mb-5 grid grid-cols-2 gap-2 rounded-lg bg-ground p-1">
         {(["website", "create"] as const).map((m) => (
-          <button key={m} type="button" onClick={() => setMode(m)} className={cx("rounded-md py-2 text-sm font-medium", mode === m ? "bg-raised shadow-sm" : "text-ink-2")}>
+          <button key={m} type="button" onClick={() => setMode(m)} className={cx("rounded-md py-2 text-sm font-medium", mode === m ? "bg-raised shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-ink-2")}>
             {m === "website" ? "From a website" : "Create a new brand"}
           </button>
         ))}
@@ -114,10 +114,10 @@ function NewBrandDialog({ open, onClose, initialMode }: { open: boolean; onClose
       <form onSubmit={submit} className="space-y-4">
         {mode === "website" ? (
           <>
-            <Field label="Website" hint="Claude scans up to 5 pages for colours, fonts, logo, products and tone, then writes the brand DNA.">
+            <Field label="Website" hint="Claude scans up to 5 pages for colours, fonts, logo, products and tone, then writes the brand DNA">
               <Input required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="yourbrand.com" autoFocus />
             </Field>
-            <Field label="Brand name" hint="Optional — taken from the site if empty.">
+            <Field label="Brand name" hint="Optional — taken from the site if empty">
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
           </>
@@ -126,8 +126,8 @@ function NewBrandDialog({ open, onClose, initialMode }: { open: boolean; onClose
             <Field label="Working name">
               <Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Name or placeholder" autoFocus />
             </Field>
-            <Field label="The idea" hint="What you sell, to whom, the feeling you want, brands you admire.">
-              <textarea required value={idea} onChange={(e) => setIdea(e.target.value)} rows={5} className="w-full rounded-lg border border-line bg-raised px-3 py-2 text-[14px] focus:border-cobalt focus:outline-none" />
+            <Field label="The idea" hint="What you sell, to whom, the feeling you want, brands you admire">
+              <textarea required value={idea} onChange={(e) => setIdea(e.target.value)} rows={5} className="w-full rounded-lg border border-line bg-raised px-3 py-2 text-body focus:border-cobalt focus:outline-none" />
             </Field>
           </>
         )}

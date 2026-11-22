@@ -74,12 +74,12 @@ export default function Claude() {
         <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {threads?.map((t) => (
             <li key={t.id}>
-              <button onClick={() => setActive(t.id)} className={cx("w-full rounded-lg px-3 py-2 text-left", active === t.id ? "bg-ink text-white" : "hover:bg-line-soft")}>
+              <button onClick={() => setActive(t.id)} className={cx("w-full rounded-lg px-3 py-2 text-left", active === t.id ? "bg-inverse text-on-inverse" : "hover:bg-line-soft")}>
                 <span className="flex items-center gap-2">
                   {t.status === "running" && <span className="live-dot flex-none" />}
-                  <span className="truncate text-[13.5px] font-medium">{t.title}</span>
+                  <span className="truncate text-caption font-medium">{t.title}</span>
                 </span>
-                <span className={cx("text-[12px]", active === t.id ? "text-white/60" : "text-ink-3")}>
+                <span className={cx("text-meta", active === t.id ? "text-on-inverse/60" : "text-ink-3")}>
                   {ago(t.updated)} · {t.jobs.length} {t.jobs.length === 1 ? "turn" : "turns"}
                 </span>
               </button>
@@ -98,13 +98,13 @@ export default function Claude() {
             </div>
           ) : (
             <div className="mx-auto max-w-[680px] py-12">
-              <h1 className="text-[34px] font-semibold">What should we make?</h1>
+              <h1 className="text-title font-medium">What should we make?</h1>
               <p className="mt-2 text-ink-2">
                 Claude works in this studio with its skills and specialists: it can research accounts, write scripts, record voiceovers, build and render. Tasks run in the background — you can leave this page.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {STARTERS(brand || "<brand>").map((s) => (
-                  <button key={s.label} onClick={() => setText(s.text)} className="rounded-full border border-line bg-raised px-3.5 py-1.5 text-[13.5px] hover:border-ink-3">
+                  <button key={s.label} onClick={() => setText(s.text)} className="rounded-full border border-line bg-raised px-3.5 py-1.5 text-caption hover:border-ink-3">
                     {s.label}
                   </button>
                 ))}

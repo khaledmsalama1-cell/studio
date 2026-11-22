@@ -45,8 +45,8 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Keys are stored in the repo's .env file on this computer only, and never committed." />
-      {msg && <p className="mb-4 rounded-lg bg-ok-soft px-3 py-2 text-[14px] text-ok">{msg}</p>}
+      <PageHeader title="Settings" subtitle="Keys are stored in the repo's .env file on this computer only, and never committed" />
+      {msg && <p className="mb-4 rounded-lg bg-ok-soft px-3 py-2 text-body text-ok">{msg}</p>}
       <ErrorNote error={err} />
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Accounts & API keys">
@@ -81,7 +81,7 @@ export default function SettingsPage() {
                   save({ claude: { ...claude, allowedTools: tools.split("\n").map((t) => t.trim()).filter(Boolean) } }, "Claude settings saved. They apply to the next task.");
                 }}
               >
-                <p className="text-[14px] text-ink-2">
+                <p className="text-body text-ink-2">
                   Tasks from this UI run Claude Code in the background, where it can't stop to ask for approval. These rules decide what it may do on its own; anything else is refused and reported back to you.
                 </p>
                 <Field label="Mode">
@@ -92,7 +92,7 @@ export default function SettingsPage() {
                   </Select>
                 </Field>
                 <Field label="Allowed without asking" hint="One rule per line, Claude Code syntax, e.g. Bash(npm run:*)">
-                  <Textarea rows={9} value={tools} onChange={(e) => setTools(e.target.value)} className="font-mono text-[12.5px]" spellCheck={false} />
+                  <Textarea rows={9} value={tools} onChange={(e) => setTools(e.target.value)} className="font-mono text-meta" spellCheck={false} />
                 </Field>
                 <Field label="Model" hint="Leave empty for your Claude Code default">
                   <Input value={claude.model} onChange={(e) => setClaude({ ...claude, model: e.target.value })} placeholder="e.g. claude-opus-5-5" />
@@ -112,11 +112,11 @@ export default function SettingsPage() {
           <Panel title="System check" actions={<Button size="sm" variant="ghost" icon={<RefreshCw className="size-4" />} busy={isFetching} onClick={() => refetch()}>Check again</Button>}>
             <ul className="space-y-2">
               {doctor?.map((r) => (
-                <li key={r.label} className="flex gap-3 text-[14px]">
+                <li key={r.label} className="flex gap-3 text-body">
                   {r.ok ? <Check className="mt-0.5 size-4 flex-none text-ok" /> : <CircleDashed className="mt-0.5 size-4 flex-none text-ink-3" />}
                   <span>
                     <span className="font-medium">{r.label}</span>
-                    {r.detail && <span className="block text-[13px] text-ink-3">{r.detail}</span>}
+                    {r.detail && <span className="block text-caption text-ink-3">{r.detail}</span>}
                   </span>
                 </li>
               ))}

@@ -18,7 +18,7 @@ export default function Research() {
     <>
       <PageHeader
         title="Research"
-        subtitle="Pull recent posts from any public account — yours or a competitor's — and see which hooks, lengths, formats and posting times actually perform."
+        subtitle="Pull recent posts from any public account — yours or a competitor's — and see which hooks, lengths, formats and posting times actually perform"
         actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setParams({ new: "1" })}>
             Research an account
@@ -31,23 +31,23 @@ export default function Research() {
         </Empty>
       ) : (
         <div className="overflow-x-auto rounded-[var(--radius-panel)] border border-line-soft bg-surface">
-          <table className="w-full min-w-[720px] text-left text-[14px]">
-            <thead className="border-b border-line-soft text-[13px] text-ink-2">
+          <table className="w-full min-w-[720px] text-left text-body">
+            <thead className="border-b border-line-soft text-caption text-ink-2">
               <tr>
-                <th className="px-5 py-3 font-semibold">Account</th>
-                <th className="px-3 py-3 font-semibold">Platform</th>
-                <th className="px-3 py-3 font-semibold">For brand</th>
-                <th className="px-3 py-3 text-right font-semibold">Posts</th>
-                <th className="px-3 py-3 text-right font-semibold">Median views</th>
-                <th className="px-3 py-3 text-right font-semibold">Posts/week</th>
-                <th className="px-5 py-3 text-right font-semibold">Updated</th>
+                <th className="px-5 py-3 font-medium">Account</th>
+                <th className="px-3 py-3 font-medium">Platform</th>
+                <th className="px-3 py-3 font-medium">For brand</th>
+                <th className="px-3 py-3 text-right font-medium">Posts</th>
+                <th className="px-3 py-3 text-right font-medium">Median views</th>
+                <th className="px-3 py-3 text-right font-medium">Posts/week</th>
+                <th className="px-5 py-3 text-right font-medium">Updated</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line-soft">
               {data?.map((r) => (
                 <tr key={r.brand + r.key} className="hover:bg-raised">
                   <td className="px-5 py-3">
-                    <Link to={`/research/${r.brand}/${r.key}`} className="font-semibold hover:text-cobalt">
+                    <Link to={`/research/${r.brand}/${r.key}`} className="font-medium hover:text-cobalt">
                       {r.name}
                     </Link>
                     <span className="ml-2 text-ink-3">@{r.handle}</span>
@@ -119,7 +119,7 @@ function NewResearchDialog({ open, onClose, defaultBrand, brands }: { open: bool
       >
         <div className="grid grid-cols-4 gap-1 rounded-lg bg-ground p-1">
           {Object.keys(PROVIDER_NOTE).map((p) => (
-            <button type="button" key={p} onClick={() => setPlatform(p)} className={cx("rounded-md py-2 text-[13.5px] font-medium", platform === p ? "bg-raised shadow-sm" : "text-ink-2")}>
+            <button type="button" key={p} onClick={() => setPlatform(p)} className={cx("rounded-md py-2 text-caption font-medium", platform === p ? "bg-raised shadow-[0_1px_2px_rgb(0_0_0/0.06)]" : "text-ink-2")}>
               {PLATFORM_LABEL[p]}
             </button>
           ))}
@@ -159,14 +159,14 @@ function NewResearchDialog({ open, onClose, defaultBrand, brands }: { open: bool
             </Select>
           </Field>
         </div>
-        <p className="text-[13px] text-ink-2">{PROVIDER_NOTE[platform].auto}</p>
+        <p className="text-caption text-ink-2">{PROVIDER_NOTE[platform].auto}</p>
         {needsKey && (
-          <p className="rounded-lg bg-signal-soft px-3 py-2 text-[13.5px]">
-            No Instagram/Facebook source is set up. Add an Apify token or Meta credentials in <Link to="/settings" className="font-semibold underline">Settings</Link>, paste single post links instead, or ask Claude to collect posts through your browser.
+          <p className="rounded-lg bg-signal-soft px-3 py-2 text-caption">
+            No Instagram/Facebook source is set up. Add an Apify token or Meta credentials in <Link to="/settings" className="font-medium underline">Settings</Link>, paste single post links instead, or ask Claude to collect posts through your browser.
           </p>
         )}
         <ErrorNote error={error} />
-        <p className="text-[12.5px] text-ink-3">Public posts only, for research. Automated collection is against most platforms' terms — keep volumes low.</p>
+        <p className="text-meta text-ink-3">Public posts only, for research. Automated collection is against most platforms' terms — keep volumes low.</p>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             {started ? "Close — keep running" : "Cancel"}

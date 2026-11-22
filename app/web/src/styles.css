@@ -2,28 +2,110 @@
 @import "@fontsource-variable/bricolage-grotesque";
 @import "@fontsource-variable/figtree";
 
-/* Studio tokens: neutral chrome so each brand's own palette carries the colour. */
+/* `dark:` follows the .dark class that lib/theme.ts puts on <html> (system, light or dark) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Studio tokens. Chrome stays graphite so each brand's own palette carries the colour;
+  cobalt marks actions, the yellow tally light marks anything live. Every colour is a
+  variable so dark mode is one block below, not a second set of classes.
+*/
+:root {
+  --ground: #eceef0;
+  --surface: #f8f9fa;
+  --raised: #ffffff;
+  --ink: #1c2024;
+  --ink-2: #4a525b;
+  --ink-3: #6b737c;
+  --line: rgb(28 32 36 / 0.16);
+  --line-soft: rgb(28 32 36 / 0.08);
+  --inverse: #1c2024;
+  --on-inverse: #f8f9fa;
+  --cobalt: #2747e8;
+  --cobalt-fill: #2747e8;
+  --cobalt-fill-hover: #1a35c4;
+  --cobalt-soft: #e4e9fd;
+  --signal: #f5c518;
+  --signal-soft: #fdf3c9;
+  --danger: #c8372d;
+  --danger-soft: #fbe5e3;
+  --ok: #1f7a49;
+  --ok-soft: #dff1e6;
+  --stage: #15171a;
+  --stage-ink: #d9dde2;
+  --float-shadow: 0 8px 24px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.05);
+  color-scheme: light;
+}
+
+.dark {
+  --ground: #141415;
+  --surface: #19191b;
+  --raised: #232325;
+  --ink: #ededed;
+  --ink-2: #a1a1a6;
+  --ink-3: #8a8a90;
+  --line: rgb(237 237 237 / 0.14);
+  --line-soft: rgb(237 237 237 / 0.08);
+  --inverse: #ededed;
+  --on-inverse: #141415;
+  --cobalt: #8ea2ff;
+  --cobalt-fill: #3b5bf5;
+  --cobalt-fill-hover: #4e6bff;
+  --cobalt-soft: rgb(142 162 255 / 0.14);
+  --signal: #f5c518;
+  --signal-soft: rgb(245 197 24 / 0.16);
+  --danger: #ef6b6b;
+  --danger-soft: rgb(229 72 77 / 0.16);
+  --ok: #4cc38a;
+  --ok-soft: rgb(76 195 138 / 0.14);
+  --stage: #0d0e0f;
+  --stage-ink: #d9dde2;
+  --float-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-inverse: var(--inverse);
+  --color-on-inverse: var(--on-inverse);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-fill: var(--cobalt-fill);
+  --color-cobalt-fill-hover: var(--cobalt-fill-hover);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-signal: var(--signal);
+  --color-signal-soft: var(--signal-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-stage: var(--stage);
+  --color-stage-ink: var(--stage-ink);
+  --shadow-float: var(--float-shadow);
+}
+
 @theme {
-  --color-ground: #e6e8eb;
-  --color-surface: #f8f9fa;
-  --color-raised: #ffffff;
-  --color-ink: #1c2024;
-  --color-ink-2: #4a525b;
-  --color-ink-3: #78818b;
-  --color-line: #c9ced4;
-  --color-line-soft: #dde1e5;
-  --color-cobalt: #2747e8;
-  --color-cobalt-dark: #1a35c4;
-  --color-cobalt-soft: #e4e9fd;
-  --color-signal: #f5c518;
-  --color-signal-soft: #fdf3c9;
-  --color-danger: #c8372d;
-  --color-danger-soft: #fbe5e3;
-  --color-ok: #23834f;
-  --color-ok-soft: #dff1e6;
   --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
   --font-sans: "Figtree Variable", system-ui, sans-serif;
   --radius-panel: 14px;
+  /* One type scale for the whole app */
+  --text-meta: 12px;
+  --text-meta--line-height: 16px;
+  --text-caption: 13px;
+  --text-caption--line-height: 20px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-ui: 15px;
+  --text-ui--line-height: 22px;
+  --text-title: 32px;
+  --text-title--line-height: 1.15;
+  --ease-out-studio: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html,
@@ -32,8 +114,8 @@ body,
   height: 100%;
 }
 body {
-  background: var(--color-ground);
-  color: var(--color-ink);
+  background: var(--ground);
+  color: var(--ink);
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.5;
@@ -43,16 +125,20 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
+  font-weight: 500;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 :focus-visible {
-  outline: 2px solid var(--color-cobalt);
+  outline: 2px solid var(--cobalt);
   outline-offset: 2px;
   border-radius: 6px;
 }
 ::selection {
-  background: var(--color-signal-soft);
+  background: var(--signal-soft);
+}
+* {
+  transition-timing-function: var(--ease-out-studio);
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -63,33 +149,36 @@ h3 {
   }
 }
 
-/* The live dot used for anything running: a recording light, not a spinner */
-@keyframes live {
+/* The tally light: only on things that are live right now */
+@keyframes tally {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  50% { opacity: 0.4; }
 }
 .live-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-signal);
-  box-shadow: 0 0 0 3px var(--color-signal-soft);
-  animation: live 1.4s ease-in-out infinite;
+  background: var(--signal);
+  box-shadow: 0 0 0 3px var(--signal-soft);
+  animation: tally 1.6s ease-in-out infinite;
 }
 
 /* Rendered markdown (briefs, reports, Claude answers) */
 .prose-studio { line-height: 1.6; }
-.prose-studio > * + * { margin-top: 0.7em; }
-.prose-studio h1 { font-size: 1.5rem; }
-.prose-studio h2 { font-size: 1.2rem; margin-top: 1.4em; }
-.prose-studio h3 { font-size: 1.05rem; margin-top: 1.2em; }
-.prose-studio ul { list-style: disc; padding-left: 1.3em; }
-.prose-studio ol { list-style: decimal; padding-left: 1.3em; }
-.prose-studio a { color: var(--color-cobalt); text-decoration: underline; text-underline-offset: 2px; }
-.prose-studio code { font-size: 0.88em; background: var(--color-line-soft); padding: 0.1em 0.35em; border-radius: 4px; }
-.prose-studio pre { background: var(--color-ink); color: #e9ecef; padding: 12px 14px; border-radius: 10px; overflow-x: auto; font-size: 13px; }
+.prose-studio > * + * { margin-top: 0.75em; }
+.prose-studio h1 { font-size: 24px; }
+.prose-studio h2 { font-size: 19px; margin-top: 1.4em; }
+.prose-studio h3 { font-size: 16px; margin-top: 1.2em; }
+.prose-studio strong { font-weight: 600; }
+.prose-studio ul { list-style: disc; padding-left: 1.25em; }
+.prose-studio ol { list-style: decimal; padding-left: 1.25em; }
+.prose-studio li::marker { color: var(--ink-3); }
+.prose-studio a { color: var(--cobalt); text-decoration: underline; text-underline-offset: 2px; }
+.prose-studio code { font-size: 0.88em; background: var(--line-soft); padding: 0.1em 0.35em; border-radius: 4px; }
+.prose-studio pre { background: var(--stage); color: var(--stage-ink); padding: 12px 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
 .prose-studio pre code { background: none; padding: 0; }
-.prose-studio table { border-collapse: collapse; font-size: 13.5px; display: block; overflow-x: auto; }
-.prose-studio th, .prose-studio td { border-bottom: 1px solid var(--color-line-soft); padding: 6px 10px; text-align: left; vertical-align: top; }
-.prose-studio th { font-weight: 600; color: var(--color-ink-2); }
-.prose-studio blockquote { border-left: 3px solid var(--color-line); padding-left: 12px; color: var(--color-ink-2); }
+.prose-studio table { border-collapse: collapse; font-size: 13px; display: block; overflow-x: auto; }
+.prose-studio th, .prose-studio td { border-bottom: 1px solid var(--line-soft); padding: 8px 12px; text-align: left; vertical-align: top; }
+.prose-studio th { font-weight: 500; color: var(--ink-2); }
+.prose-studio td { font-variant-numeric: tabular-nums; }
+.prose-studio blockquote { border-left: 2px solid var(--line); padding-left: 12px; color: var(--ink-2); }

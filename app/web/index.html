@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Studio</title>
+    <script>
+      // Apply the saved theme before first paint so dark mode doesn't flash white
+      try {
+        var t = localStorage.getItem("studio-theme");
+        if (t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='3' width='11' height='26' rx='3' fill='%232747E8'/><rect x='18' y='3' width='11' height='12' rx='3' fill='%231C2024'/><circle cx='23.5' cy='23' r='5.5' fill='%23F5C518'/></svg>" />
   </head>
   <body>

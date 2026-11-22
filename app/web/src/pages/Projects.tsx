@@ -19,7 +19,7 @@ export default function Projects() {
     <>
       <PageHeader
         title="Projects"
-        subtitle="One project is one piece of content: a reel, a carousel, a post or a set of story frames."
+        subtitle="One project is one piece of content: a reel, a carousel, a post or a set of story frames"
         actions={
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setParams({ ...Object.fromEntries(params), new: "1" })}>
             New project
@@ -37,7 +37,7 @@ export default function Projects() {
         </Select>
         <div className="flex flex-wrap gap-1">
           {STATUSES.map((s) => (
-            <button key={s} onClick={() => setStatus(s)} className={cx("rounded-full px-3 py-1.5 text-[13px] font-medium capitalize", status === s ? "bg-ink text-white" : "text-ink-2 hover:bg-line-soft")}>
+            <button key={s} onClick={() => setStatus(s)} className={cx("rounded-full px-3 py-1.5 text-caption font-medium capitalize", status === s ? "bg-inverse text-on-inverse" : "text-ink-2 hover:bg-line-soft")}>
               {s === "all" ? "Active" : s.replace("-", " ")}
             </button>
           ))}
@@ -59,7 +59,7 @@ export function ProjectCard({ p, compact }: { p: ProjectSummary; compact?: boole
   const h = p.height || 1920;
   return (
     <Link to={`/projects/${p.brand}/${p.id}`} className={cx("group block flex-none", compact && "w-[170px]")}>
-      <div className="overflow-hidden rounded-md border border-line-soft bg-ink shadow-sm group-hover:ring-2 group-hover:ring-cobalt">
+      <div className="overflow-hidden rounded-md border border-line-soft bg-stage group-hover:ring-2 group-hover:ring-cobalt">
         {p.thumbnail ? (
           <img src={p.thumbnail} alt="" className="w-full object-cover" style={{ aspectRatio: `${w} / ${h}` }} />
         ) : p.firstScene ? (
@@ -72,8 +72,8 @@ export function ProjectCard({ p, compact }: { p: ProjectSummary; compact?: boole
       </div>
       <div className="mt-2 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-[14px] font-semibold">{p.name}</div>
-          <div className="truncate text-[12.5px] text-ink-3">
+          <div className="truncate text-body font-medium">{p.name}</div>
+          <div className="truncate text-meta text-ink-3">
             {p.format} · {p.brand} · {ago(p.updated)}
           </div>
         </div>
@@ -119,7 +119,7 @@ export function NewProjectDialog({ open, onClose, defaultBrand }: { open: boolea
     <Dialog open={open} onClose={onClose} title="New project" wide>
       <form onSubmit={submit} className="space-y-5">
         <div>
-          <span className="mb-2 block text-[13px] font-semibold text-ink-2">Format</span>
+          <span className="mb-2 block text-caption font-medium text-ink-2">Format</span>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-7">
             {meta?.formats.map((f) => {
               const r = f.width / f.height;
@@ -128,13 +128,13 @@ export function NewProjectDialog({ open, onClose, defaultBrand }: { open: boolea
                   <span className="flex h-14 items-center">
                     <span className={cx("block rounded-[3px] border-2", format === f.id ? "border-cobalt bg-cobalt-soft" : "border-ink-3")} style={{ height: r < 1 ? 52 : 52 / r, width: r < 1 ? 52 * r : 52 }} />
                   </span>
-                  <span className="text-[13px] font-medium capitalize">{f.id}</span>
+                  <span className="text-caption font-medium capitalize">{f.id}</span>
                 </button>
               );
             })}
           </div>
           {fmt && (
-            <p className="mt-2 text-[13px] text-ink-2">
+            <p className="mt-2 text-caption text-ink-2">
               {fmt.description} {fmt.width}×{fmt.height}.
             </p>
           )}
@@ -162,7 +162,7 @@ export function NewProjectDialog({ open, onClose, defaultBrand }: { open: boolea
           )}
         </div>
         <ErrorNote error={error} />
-        {!brands?.length && <p className="text-[13.5px] text-ink-2">Add a brand first — projects are styled from it.</p>}
+        {!brands?.length && <p className="text-caption text-ink-2">Add a brand first — projects are styled from it.</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel

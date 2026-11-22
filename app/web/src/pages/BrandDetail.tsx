@@ -92,7 +92,7 @@ export default function BrandDetail() {
           <div className="flex min-w-0 items-center gap-5">
             {logo && <img src={logo} alt="" className="size-16 flex-none object-contain md:size-20" />}
             <div className="min-w-0">
-              <h1 className="truncate text-[38px] md:text-[52px]" style={{ fontFamily: `"${f.display?.family}", system-ui`, fontWeight: f.display?.weight || 700, letterSpacing: "-0.03em" }}>
+              <h1 className="truncate text-title md:text-[52px]" style={{ fontFamily: `"${f.display?.family}", system-ui`, fontWeight: f.display?.weight || 700, letterSpacing: "-0.03em" }}>
                 {draft.name}
               </h1>
               <p className="mt-1 max-w-[60ch] opacity-80" style={{ fontFamily: `"${f.body?.family}", system-ui` }}>{draft.tagline}</p>
@@ -196,7 +196,7 @@ function Identity({ draft, set, data, slug }: { draft: any; set: (p: string, v: 
                 <div className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-line p-3 group-hover:border-ink-3" style={{ background: role === "onDark" ? c.primary : c.background }}>
                   {url ? <img src={url} alt={`${role} logo`} className="max-h-full max-w-full object-contain" /> : <Upload className="size-5 text-ink-3" />}
                 </div>
-                <span className="mt-1.5 block text-center text-[12.5px] text-ink-2">{role === "primary" ? "Full logo" : role === "mark" ? "Icon / mark" : "On dark"}</span>
+                <span className="mt-1.5 block text-center text-meta text-ink-2">{role === "primary" ? "Full logo" : role === "mark" ? "Icon / mark" : "On dark"}</span>
                 <input type="file" accept=".svg,.png,.jpg,.jpeg,.webp" className="sr-only" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0], role)} />
               </label>
             );
@@ -214,10 +214,10 @@ function Identity({ draft, set, data, slug }: { draft: any; set: (p: string, v: 
         <ContrastNotes c={c} />
         {data.site?.colors?.brandCandidates?.length ? (
           <div className="mt-5 border-t border-line-soft pt-4">
-            <p className="mb-2 text-[13px] font-semibold text-ink-2">Found on {new URL(data.site.source).hostname}</p>
+            <p className="mb-2 text-caption font-medium text-ink-2">Found on {new URL(data.site.source).hostname}</p>
             <div className="flex flex-wrap gap-1.5">
               {[...data.site.colors.brandCandidates, ...data.site.colors.neutrals.slice(0, 4)].map((x) => (
-                <button key={x.hex} title={`Copy ${x.hex}`} onClick={() => navigator.clipboard.writeText(x.hex)} className="flex items-center gap-1.5 rounded-md border border-line-soft bg-raised py-1 pr-2 pl-1 font-mono text-[11.5px] hover:border-ink-3">
+                <button key={x.hex} title={`Copy ${x.hex}`} onClick={() => navigator.clipboard.writeText(x.hex)} className="flex items-center gap-1.5 rounded-md border border-line-soft bg-raised py-1 pr-2 pl-1 font-mono text-meta hover:border-ink-3">
                   <span className="size-4 rounded" style={{ background: x.hex }} />
                   {x.hex}
                 </button>
@@ -250,7 +250,7 @@ function Identity({ draft, set, data, slug }: { draft: any; set: (p: string, v: 
               </div>
             ))}
             {!!data.site?.fonts && (data.site.fonts.google.length > 0 || data.site.fonts.cssFamilies.length > 0) && (
-              <p className="text-[13px] text-ink-3">Fonts on the website: {[...data.site.fonts.google, ...data.site.fonts.cssFamilies.map((x) => x.family)].slice(0, 6).join(", ")}</p>
+              <p className="text-caption text-ink-3">Fonts on the website: {[...data.site.fonts.google, ...data.site.fonts.cssFamilies.map((x) => x.family)].slice(0, 6).join(", ")}</p>
             )}
           </div>
         </Panel>
@@ -259,7 +259,7 @@ function Identity({ draft, set, data, slug }: { draft: any; set: (p: string, v: 
             <Field label="Energy" hint="How fast and far things move in videos">
               <div className="grid grid-cols-3 gap-2">
                 {["calm", "medium", "high"].map((e) => (
-                  <button key={e} onClick={() => set("visual.motion.energy", e)} className={cx("rounded-lg border py-2 text-sm font-medium capitalize", draft.visual?.motion?.energy === e ? "border-ink bg-ink text-white" : "border-line bg-raised hover:border-ink-3")}>
+                  <button key={e} onClick={() => set("visual.motion.energy", e)} className={cx("rounded-lg border py-2 text-sm font-medium capitalize", draft.visual?.motion?.energy === e ? "border-ink bg-inverse text-on-inverse" : "border-line bg-raised hover:border-ink-3")}>
                     {e}
                   </button>
                 ))}
@@ -287,8 +287,8 @@ function ColorRow({ label, hint, value, onChange }: { label: string; hint: strin
         <input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#000000"} onChange={(e) => onChange(e.target.value.toUpperCase())} className="absolute inset-0 cursor-pointer opacity-0" aria-label={`${label} colour`} />
       </label>
       <div className="min-w-0 flex-1">
-        <div className="text-[14px] font-semibold capitalize">{label}</div>
-        <div className="truncate text-[12.5px] text-ink-3">{hint}</div>
+        <div className="text-body font-medium capitalize">{label}</div>
+        <div className="truncate text-meta text-ink-3">{hint}</div>
       </div>
       <Input
         value={text}
@@ -296,7 +296,7 @@ function ColorRow({ label, hint, value, onChange }: { label: string; hint: strin
           setText(e.target.value);
           if (/^#[0-9a-f]{6}$/i.test(e.target.value)) onChange(e.target.value.toUpperCase());
         }}
-        className="h-9 w-28 font-mono text-[13px]"
+        className="h-9 w-28 font-mono text-caption"
         aria-label={`${label} hex`}
       />
     </div>
@@ -326,12 +326,12 @@ function ContrastNotes({ c }: { c: Record<string, string> }) {
         const okay = r != null && r >= min;
         return (
           <div key={label} className="flex items-center gap-2.5 rounded-lg border border-line-soft bg-raised p-2">
-            <span className="flex size-8 flex-none items-center justify-center rounded text-[13px] font-bold" style={{ background: bg, color: fg }}>
+            <span className="flex size-8 flex-none items-center justify-center rounded text-caption font-medium" style={{ background: bg, color: fg }}>
               Aa
             </span>
-            <span className="min-w-0 text-[12px] leading-tight">
+            <span className="min-w-0 text-meta leading-tight">
               <span className="block truncate text-ink-2">{label}</span>
-              <span className={cx("font-semibold", okay ? "text-ok" : "text-danger")}>{r ? r.toFixed(1) + ":1" : "–"} {okay ? "readable" : `needs ${min}:1`}</span>
+              <span className={cx("font-medium", okay ? "text-ok" : "text-danger")}>{r ? r.toFixed(1) + ":1" : "–"} {okay ? "readable" : `needs ${min}:1`}</span>
             </span>
           </div>
         );
@@ -403,16 +403,16 @@ function VoiceTab({ draft, set }: { draft: any; set: (p: string, v: unknown) => 
                   ["kokoro", "Kokoro", "Free, runs on this computer"],
                 ].map(([id, name, note]) => (
                   <button key={id} onClick={() => setN("provider", id)} className={cx("rounded-lg border p-3 text-left", provider === id ? "border-ink bg-raised ring-1 ring-ink" : "border-line bg-raised hover:border-ink-3")}>
-                    <span className="block text-sm font-semibold">{name}</span>
-                    <span className="block text-[12.5px] text-ink-3">{note}</span>
+                    <span className="block text-sm font-medium">{name}</span>
+                    <span className="block text-meta text-ink-3">{note}</span>
                   </button>
                 ))}
               </div>
             </Field>
             {provider === "elevenlabs" ? (
               voices?.elevenlabs === null ? (
-                <p className="rounded-lg bg-signal-soft px-3 py-2 text-[13.5px]">
-                  Add your ElevenLabs API key in <Link to="/settings" className="font-semibold underline">Settings</Link> to pick from your voices. You can still paste a voice ID below.
+                <p className="rounded-lg bg-signal-soft px-3 py-2 text-caption">
+                  Add your ElevenLabs API key in <Link to="/settings" className="font-medium underline">Settings</Link> to pick from your voices. You can still paste a voice ID below.
                 </p>
               ) : voices?.elevenlabs && "error" in voices.elevenlabs ? (
                 <ErrorNote error={voices.elevenlabs.error} />
@@ -443,7 +443,7 @@ function VoiceTab({ draft, set }: { draft: any; set: (p: string, v: unknown) => 
             {provider === "elevenlabs" && (
               <>
                 <Field label="Voice ID">
-                  <Input value={narrator.voice_id || ""} onChange={(e) => setN("voice_id", e.target.value)} className="font-mono text-[13px]" />
+                  <Input value={narrator.voice_id || ""} onChange={(e) => setN("voice_id", e.target.value)} className="font-mono text-caption" />
                 </Field>
                 <Field label="Model">
                   <Select value={narrator.model_id || "eleven_multilingual_v2"} onChange={(e) => setN("model_id", e.target.value)}>
@@ -493,7 +493,7 @@ function Audience({ draft, set }: { draft: any; set: (p: string, v: unknown) => 
           <Field label="Mission">
             <Textarea rows={2} value={e.mission || ""} onChange={(x) => set("essence.mission", x.target.value)} />
           </Field>
-          <Field label="Positioning" hint="For [audience] who [need], [brand] is the [category] that [benefit], unlike [alternative].">
+          <Field label="Positioning" hint="For [audience] who [need], [brand] is the [category] that [benefit], unlike [alternative]">
             <Textarea rows={2} value={e.positioning || ""} onChange={(x) => set("essence.positioning", x.target.value)} />
           </Field>
           <Field label="Values">
@@ -510,7 +510,7 @@ function Audience({ draft, set }: { draft: any; set: (p: string, v: unknown) => 
           {listOf("audience").map((p, i) => (
             <div key={i} className="space-y-3 border-b border-line-soft pb-5 last:border-0 last:pb-0">
               <div className="flex gap-2">
-                <Input value={p.name || ""} onChange={(x) => update("audience", i, { name: x.target.value })} className="font-semibold" />
+                <Input value={p.name || ""} onChange={(x) => update("audience", i, { name: x.target.value })} className="font-medium" />
                 <Button variant="ghost" onClick={() => remove("audience", i)} icon={<Trash2 className="size-4" />} aria-label="Remove persona" />
               </div>
               <Textarea rows={2} value={p.description || ""} placeholder="Who they are" onChange={(x) => update("audience", i, { description: x.target.value })} />
@@ -532,7 +532,7 @@ function Audience({ draft, set }: { draft: any; set: (p: string, v: unknown) => 
           {listOf("products").map((p, i) => (
             <div key={i} className="space-y-3 border-b border-line-soft pb-5 last:border-0 last:pb-0">
               <div className="flex gap-2">
-                <Input value={p.name || ""} onChange={(x) => update("products", i, { name: x.target.value })} className="font-semibold" />
+                <Input value={p.name || ""} onChange={(x) => update("products", i, { name: x.target.value })} className="font-medium" />
                 <Input value={p.price || ""} placeholder="Price" onChange={(x) => update("products", i, { price: x.target.value })} className="w-32" />
                 <Button variant="ghost" onClick={() => remove("products", i)} icon={<Trash2 className="size-4" />} aria-label="Remove product" />
               </div>
@@ -554,7 +554,7 @@ function Audience({ draft, set }: { draft: any; set: (p: string, v: unknown) => 
         <div className="space-y-3">
           {listOf("content_pillars").map((p, i) => (
             <div key={i} className="flex gap-2">
-              <Input value={p.name || ""} placeholder="Name" onChange={(x) => update("content_pillars", i, { name: x.target.value })} className="w-44 font-semibold" />
+              <Input value={p.name || ""} placeholder="Name" onChange={(x) => update("content_pillars", i, { name: x.target.value })} className="w-44 font-medium" />
               <Input value={p.description || ""} placeholder="What it covers" onChange={(x) => update("content_pillars", i, { description: x.target.value })} />
               <Button variant="ghost" onClick={() => remove("content_pillars", i)} icon={<Trash2 className="size-4" />} aria-label="Remove pillar" />
             </div>
@@ -599,11 +599,11 @@ function ResearchTab({ slug, data, website }: { slug: string; data: BrandResp; w
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Website scan">
           {data.site ? (
-            <p className="mb-4 text-[14px] text-ink-2">
+            <p className="mb-4 text-body text-ink-2">
               Scanned {data.site.pages} pages of {new URL(data.site.source).hostname} {ago(data.site.fetchedAt)}.
             </p>
           ) : (
-            <p className="mb-4 text-[14px] text-ink-2">Not scanned yet. Scanning collects colours, fonts, logo candidates, page copy and images.</p>
+            <p className="mb-4 text-body text-ink-2">Not scanned yet. Scanning collects colours, fonts, logo candidates, page copy and images.</p>
           )}
           <form
             className="flex gap-2"
@@ -634,7 +634,7 @@ function ResearchTab({ slug, data, website }: { slug: string; data: BrandResp; w
               <Markdown text={data.insights} />
             </div>
           ) : (
-            <p className="text-[14px] text-ink-2">
+            <p className="text-body text-ink-2">
               No insights yet. Research the brand's accounts and 2–5 competitors, then ask Claude to write insights from the reports.
             </p>
           )}
@@ -642,16 +642,16 @@ function ResearchTab({ slug, data, website }: { slug: string; data: BrandResp; w
       </div>
 
       <div>
-        <h2 className="mb-3 text-[21px] font-semibold">Accounts researched</h2>
+        <h2 className="mb-3 text-xl font-medium">Accounts researched</h2>
         {!research?.length ? (
           <Empty title="No accounts researched">Pull recent posts from Instagram, TikTok, YouTube or Facebook to see what performs.</Empty>
         ) : (
           <div className="divide-y divide-line-soft rounded-[var(--radius-panel)] border border-line-soft bg-surface">
             {research.map((r) => (
               <Link key={r.key} to={`/research/${r.brand}/${r.key}`} className="flex items-center gap-4 px-5 py-3 hover:bg-raised">
-                <span className="w-24 text-[13px] text-ink-3">{PLATFORM_LABEL[r.platform]}</span>
+                <span className="w-24 text-caption text-ink-3">{PLATFORM_LABEL[r.platform]}</span>
                 <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
-                <span className="text-[13px] text-ink-2">{r.posts} posts · median {fmt(r.median_views)} views</span>
+                <span className="text-caption text-ink-2">{r.posts} posts · median {fmt(r.median_views)} views</span>
               </Link>
             ))}
           </div>
@@ -659,7 +659,7 @@ function ResearchTab({ slug, data, website }: { slug: string; data: BrandResp; w
       </div>
 
       <div>
-        <h2 className="mb-3 text-[21px] font-semibold">Projects</h2>
+        <h2 className="mb-3 text-xl font-medium">Projects</h2>
         {!projects?.length ? (
           <Empty title="No projects for this brand" action={<Link to={`/projects?new=1&brand=${slug}`}><Button>Start a project</Button></Link>} />
         ) : (
@@ -675,7 +675,7 @@ function JsonTab({ draft, setDraft }: { draft: any; setDraft: (d: any) => void }
   const [text, setText] = useState(() => JSON.stringify(draft, null, 2));
   const [err, setErr] = useState<string | null>(null);
   return (
-    <Panel title="brand.json" actions={<span className="text-[12.5px] text-ink-3">Edits apply to the form; press Save changes to write the file</span>}>
+    <Panel title="brand.json" actions={<span className="text-meta text-ink-3">Edits apply to the form; press Save changes to write the file</span>}>
       <Textarea
         rows={28}
         spellCheck={false}
@@ -689,9 +689,9 @@ function JsonTab({ draft, setDraft }: { draft: any; setDraft: (d: any) => void }
             setErr((x as Error).message);
           }
         }}
-        className="font-mono text-[12.5px]"
+        className="font-mono text-meta"
       />
-      {err && <p className="mt-2 text-[13px] text-danger">{err}</p>}
+      {err && <p className="mt-2 text-caption text-danger">{err}</p>}
     </Panel>
   );
 }

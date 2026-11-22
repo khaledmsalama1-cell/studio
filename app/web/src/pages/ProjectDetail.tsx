@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Copy, Download, ExternalLink, Film, Hammer, Mic, Plus, Save, ScanEye, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Download, ExternalLink, Film, Hammer, Mic, Plus, Save, ScanEye, Sparkles, Trash2, Upload } from "lucide-react";
 import { api, bytes, type JobSummary, type ProjectDetail as PD, type Scene } from "../lib/api";
 import { useRun } from "../lib/useRun";
 import { useJobs } from "../components/Layout";
@@ -108,14 +108,14 @@ export default function ProjectDetail() {
       </div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[34px] font-semibold">{id.replace(/^\d{4}-\d{2}-\d{2}-/, "")}</h1>
+          <h1 className="text-title font-medium">{id.replace(/^\d{4}-\d{2}-\d{2}-/, "")}</h1>
           <p className="mt-1 text-ink-2">
             {p.format} · {W}×{H} · {isStatic ? `${scenes.length} slides` : `${p.engine}`}
             {data.timing && !isStatic && ` · ${data.timing.total.toFixed(1)}s`}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[13px] text-ink-3">{dirty ? "Saving…" : "Saved"}</span>
+          <span className="text-caption text-ink-3">{dirty ? "Saving…" : "Saved"}</span>
           <Select
             value={p.status}
             onChange={async (e) => {
@@ -150,7 +150,7 @@ export default function ProjectDetail() {
       <ErrorNote error={saveErr || runErr} />
 
       {/* The film strip */}
-      <div className="mt-6 mb-6 flex gap-3 overflow-x-auto rounded-[var(--radius-panel)] bg-ink p-3" role="listbox" aria-label="Scenes">
+      <div className="mt-6 mb-6 flex gap-3 overflow-x-auto rounded-[var(--radius-panel)] bg-stage p-3" role="listbox" aria-label="Scenes">
         {scenes.map((s, i) => {
           const t = data.timing?.scenes[i];
           return (
@@ -158,7 +158,7 @@ export default function ProjectDetail() {
               <div className={cx("overflow-hidden rounded-[5px] ring-2 transition-shadow", i === sel ? "ring-signal" : "ring-transparent hover:ring-white/40")}>
                 <Stage width={W} height={H}>{frame(s, i)}</Stage>
               </div>
-              <div className="mt-1.5 flex justify-between gap-1 px-0.5 text-[11.5px] text-white/60">
+              <div className="mt-1.5 flex justify-between gap-1 px-0.5 text-meta text-white/60">
                 <span className="truncate">
                   {i + 1}. {TYPE_LABEL[s.type]}
                 </span>
@@ -177,7 +177,7 @@ export default function ProjectDetail() {
             <div className="overflow-hidden rounded-lg shadow-lg">
               <Stage width={W} height={H}>{frame(scene, sel)}</Stage>
             </div>
-            <p className="mt-2 text-center text-[12.5px] text-ink-3">Preview approximates the render. Check exact frames under Frames.</p>
+            <p className="mt-2 text-center text-meta text-ink-3">Preview approximates the render. Check exact frames under Frames.</p>
           </div>
           <Panel
             title={`Scene ${sel + 1} of ${scenes.length}`}
@@ -239,7 +239,7 @@ function Pipeline({ isStatic, engine, data, totalWords, busy, onVoice, onBuild, 
       done: !!data.captions,
       body: (
         <div className="flex gap-2">
-          <Select value={provider} onChange={(e) => setProvider(e.target.value)} className="h-8 text-[13px]" aria-label="Voice engine">
+          <Select value={provider} onChange={(e) => setProvider(e.target.value)} className="h-8 text-caption" aria-label="Voice engine">
             <option value="elevenlabs">ElevenLabs</option>
             <option value="kokoro">Kokoro (free)</option>
           </Select>
@@ -304,7 +304,7 @@ function Pipeline({ isStatic, engine, data, totalWords, busy, onVoice, onBuild, 
         <div className="flex flex-wrap items-center gap-2">
           {!isStatic &&
             ["1x1", "4x5", "16x9"].map((v) => (
-              <label key={v} className="flex items-center gap-1 text-[12.5px] text-ink-2">
+              <label key={v} className="flex items-center gap-1 text-meta text-ink-2">
                 <input type="checkbox" className="accent-cobalt" checked={variants.includes(v)} onChange={(e) => setVariants(e.target.checked ? [...variants, v] : variants.filter((x) => x !== v))} />
                 {v.replace("x", ":")}
               </label>
@@ -322,10 +322,10 @@ function Pipeline({ isStatic, engine, data, totalWords, busy, onVoice, onBuild, 
       {steps.map((s, i) => (
         <li key={s.key} className="flex flex-col gap-3 bg-surface p-4">
           <div className="flex items-center gap-2.5">
-            <span className={cx("flex size-6 flex-none items-center justify-center rounded-full text-[12px] font-bold", s.done ? "bg-ok text-white" : "bg-line-soft text-ink-2")}>{i + 1}</span>
-            <span className="font-semibold">{s.title}</span>
+            <span className={cx("flex size-6 flex-none items-center justify-center rounded-full text-meta font-medium tabular-nums", s.done ? "bg-ok-soft text-ok" : "bg-line-soft text-ink-2")}>{s.done ? <Check className="size-3.5" strokeWidth={2} /> : i + 1}</span>
+            <span className="font-medium">{s.title}</span>
           </div>
-          <p className="text-[13px] text-ink-2">{s.status}</p>
+          <p className="text-caption text-ink-2">{s.status}</p>
           <div className="mt-auto">{s.body}</div>
         </li>
       ))}
@@ -337,14 +337,14 @@ function AddScene({ onAdd, tall }: { onAdd: (t: Scene["type"]) => void; tall: bo
   const [open, setOpen] = useState(false);
   return (
     <div className={cx("relative flex-none", tall ? "w-[112px]" : "w-[160px]")}>
-      <button onClick={() => setOpen(!open)} className="flex aspect-[9/16] w-full flex-col items-center justify-center gap-1 rounded-[5px] border border-dashed border-white/30 text-[12.5px] text-white/70 hover:border-white/70 hover:text-white" style={{ aspectRatio: tall ? "9 / 16" : "16 / 9" }}>
+      <button onClick={() => setOpen(!open)} className="flex aspect-[9/16] w-full flex-col items-center justify-center gap-1 rounded-[5px] border border-dashed border-white/30 text-meta text-white/70 hover:border-white/70 hover:text-white" style={{ aspectRatio: tall ? "9 / 16" : "16 / 9" }}>
         <Plus className="size-5" />
         Add scene
       </button>
       {open && (
-        <div className="absolute top-2 left-full z-10 ml-2 w-44 overflow-hidden rounded-lg border border-line bg-raised py-1 shadow-xl">
+        <div className="absolute top-2 left-full z-10 ml-2 w-44 overflow-hidden rounded-lg border border-line bg-raised py-1 shadow-float">
           {(Object.keys(TYPE_LABEL) as Scene["type"][]).map((t) => (
-            <button key={t} onClick={() => (onAdd(t), setOpen(false))} className="block w-full px-3 py-1.5 text-left text-[13.5px] hover:bg-line-soft">
+            <button key={t} onClick={() => (onAdd(t), setOpen(false))} className="block w-full px-3 py-1.5 text-left text-caption hover:bg-line-soft">
               {TYPE_LABEL[t]}
             </button>
           ))}
@@ -467,14 +467,14 @@ function TextDoc({ brand, id, file, initial }: { brand: string; id: string; file
       title={file === "brief" ? "Brief" : "Captions for each platform"}
       actions={
         <>
-          <span className="text-[12.5px] text-ink-3">{state === "saved" ? "Saved" : "Saving…"}</span>
+          <span className="text-meta text-ink-3">{state === "saved" ? "Saved" : "Saving…"}</span>
           <Button size="sm" variant="ghost" onClick={() => setEdit(!edit)}>
             {edit ? "Preview" : "Edit"}
           </Button>
         </>
       }
     >
-      {edit ? <Textarea rows={18} value={text} onChange={(e) => setText(e.target.value)} className="font-mono text-[13px]" /> : <Markdown text={text} className="max-w-[75ch]" />}
+      {edit ? <Textarea rows={18} value={text} onChange={(e) => setText(e.target.value)} className="font-mono text-caption" /> : <Markdown text={text} className="max-w-[75ch]" />}
     </Panel>
   );
 }
@@ -485,9 +485,9 @@ function AudioTab({ content, setContent, data }: { content: PD["content"]; setCo
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Panel title="Voiceover">
-        {vo ? <audio controls src={`${vo.url}?v=${vo.size}`} className="mb-4 w-full" /> : <p className="mb-4 text-[14px] text-ink-2">No voiceover yet. Record it from step 1 above, or use your own recording below.</p>}
+        {vo ? <audio controls src={`${vo.url}?v=${vo.size}`} className="mb-4 w-full" /> : <p className="mb-4 text-body text-ink-2">No voiceover yet. Record it from step 1 above, or use your own recording below.</p>}
         {data.captions && (
-          <div className="mb-4 max-h-40 overflow-y-auto rounded-lg bg-raised p-3 text-[14px] leading-relaxed">
+          <div className="mb-4 max-h-40 overflow-y-auto rounded-lg bg-raised p-3 text-body leading-relaxed">
             {data.captions.words.map((w, i) => (
               <span key={i} title={`${w.start.toFixed(2)}s`}>
                 {w.text}{" "}
@@ -499,7 +499,7 @@ function AudioTab({ content, setContent, data }: { content: PD["content"]; setCo
       </Panel>
       <Panel title="Captions & music">
         <div className="space-y-4">
-          <label className="flex items-center gap-2 text-[14px]">
+          <label className="flex items-center gap-2 text-body">
             <input type="checkbox" className="size-4 accent-cobalt" checked={content.captions?.enabled !== false} onChange={(e) => setContent({ ...content, captions: { ...content.captions, enabled: e.target.checked } })} />
             Burn in word-by-word captions
           </label>
@@ -517,7 +517,7 @@ function AudioTab({ content, setContent, data }: { content: PD["content"]; setCo
           <Field label={`Music volume ${Math.round((content.music?.volume ?? 0.12) * 100)}%`} hint="Keep it well under the voice: 8–15%">
             <input type="range" min={0} max={0.5} step={0.01} value={content.music?.volume ?? 0.12} onChange={(e) => setContent({ ...content, music: { ...content.music, volume: Number(e.target.value) } })} className="w-full accent-cobalt" />
           </Field>
-          <p className="text-[13px] text-ink-3">Changes apply on the next build or render.</p>
+          <p className="text-caption text-ink-3">Changes apply on the next build or render.</p>
         </div>
       </Panel>
     </div>
@@ -529,7 +529,7 @@ function RecordingUpload({ data }: { data: PD }) {
   const qc = useQueryClient();
   const [err, setErr] = useState<unknown>(null);
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-line p-3 text-[13.5px] text-ink-2 hover:border-ink-3">
+    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-line p-3 text-caption text-ink-2 hover:border-ink-3">
       <Upload className="size-4 flex-none" />
       <span>Use your own recording (any voice tool). It's transcribed for caption timing.</span>
       <input
@@ -584,8 +584,8 @@ function AssetsTab({ data }: { data: PD }) {
         onDrop={(e) => (e.preventDefault(), upload(e.dataTransfer.files))}
       >
         <Upload className="size-6 text-ink-3" />
-        <span className="font-semibold">{busy ? "Uploading…" : "Drop photos, clips or music here"}</span>
-        <span className="text-[13px] text-ink-2">Use only media you own or have a licence for.</span>
+        <span className="font-medium">{busy ? "Uploading…" : "Drop photos, clips or music here"}</span>
+        <span className="text-caption text-ink-2">Use only media you own or have a licence for.</span>
         <input type="file" multiple accept="image/*,video/*,audio/*" className="sr-only" onChange={(e) => upload(e.target.files)} />
       </label>
       <ErrorNote error={err} />
@@ -594,9 +594,9 @@ function AssetsTab({ data }: { data: PD }) {
           {list.map((a) => (
             <a key={a.path} href={a.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border border-line-soft bg-surface">
               <div className="flex aspect-square items-center justify-center bg-ground">
-                {/\.(png|jpe?g|webp|gif|svg)$/i.test(a.path) ? <img src={a.url} alt="" className="size-full object-cover" /> : /\.(mp4|mov|webm)$/i.test(a.path) ? <video src={a.url} muted className="size-full object-cover" /> : <span className="text-[13px] text-ink-3">audio</span>}
+                {/\.(png|jpe?g|webp|gif|svg)$/i.test(a.path) ? <img src={a.url} alt="" className="size-full object-cover" /> : /\.(mp4|mov|webm)$/i.test(a.path) ? <video src={a.url} muted className="size-full object-cover" /> : <span className="text-caption text-ink-3">audio</span>}
               </div>
-              <div className="truncate px-2.5 py-2 text-[12.5px]" title={a.path}>
+              <div className="truncate px-2.5 py-2 text-meta" title={a.path}>
                 {a.path.replace("assets/", "")} <span className="text-ink-3">{bytes(a.size)}</span>
               </div>
             </a>
@@ -612,7 +612,7 @@ function FramesTab({ data, busy, onRun }: { data: PD; busy: boolean; onRun: () =
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="max-w-[65ch] text-[14px] text-ink-2">Exact rendered frames, one from each scene. Look for text running off the edge, captions covering text, or low contrast before you render.</p>
+        <p className="max-w-[65ch] text-body text-ink-2">Exact rendered frames, one from each scene. Look for text running off the edge, captions covering text, or low contrast before you render.</p>
         <Button icon={<ScanEye className="size-4" />} busy={busy} disabled={!data.timing} onClick={onRun}>
           {data.snapshots.length ? "Capture again" : "Capture frames"}
         </Button>
@@ -641,7 +641,7 @@ function OutputsTab({ data, video }: { data: PD; video?: PD["outputs"][number] }
     <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_1fr]">
       {video && (
         <div>
-          <video src={video.url} controls className="w-full rounded-lg bg-ink" />
+          <video src={video.url} controls className="w-full rounded-lg bg-stage" />
           <a href={`${video.url}&download`} className="mt-2 inline-flex">
             <Button size="sm" icon={<Download className="size-4" />}>Download {video.name}</Button>
           </a>
@@ -650,9 +650,9 @@ function OutputsTab({ data, video }: { data: PD; video?: PD["outputs"][number] }
       <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] content-start gap-3">
         {items.map((o) => (
           <div key={o.name} className="overflow-hidden rounded-lg border border-line-soft bg-surface">
-            {o.kind === "image" ? <img src={o.url} alt={o.name} className="w-full" /> : o.kind === "video" ? <video src={o.url} controls className="w-full bg-ink" /> : null}
+            {o.kind === "image" ? <img src={o.url} alt={o.name} className="w-full" /> : o.kind === "video" ? <video src={o.url} controls className="w-full bg-stage" /> : null}
             <div className="flex items-center justify-between gap-2 px-2.5 py-2">
-              <span className="truncate text-[12.5px]" title={o.name}>{o.name}</span>
+              <span className="truncate text-meta" title={o.name}>{o.name}</span>
               <a href={`${o.url}&download`} className="text-ink-3 hover:text-ink" aria-label={`Download ${o.name}`}>
                 <Download className="size-4" />
               </a>
@@ -706,7 +706,7 @@ function ProjectClaude({ data, save }: { data: PD; save: () => Promise<boolean> 
           <ul className="divide-y divide-line-soft rounded-lg border border-line-soft bg-surface">
             {mine.map((j) => (
               <li key={j.id}>
-                <button onClick={() => setCurrent(j.id)} className={cx("flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] hover:bg-raised", shown === j.id && "bg-raised font-medium")}>
+                <button onClick={() => setCurrent(j.id)} className={cx("flex w-full items-center gap-2 px-3 py-2 text-left text-caption hover:bg-raised", shown === j.id && "bg-raised font-medium")}>
                   <Badge status={j.status} />
                   <span className="truncate">{j.title}</span>
                 </button>

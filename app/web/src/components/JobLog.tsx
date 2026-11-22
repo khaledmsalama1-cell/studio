@@ -37,11 +37,11 @@ export function JobLog({ id, compact, onClose }: { id: string; compact?: boolean
           )}
         </div>
       </div>
-      <div ref={box} className={`min-h-0 flex-1 overflow-y-auto ${job.kind === "claude" ? "bg-surface px-4 pb-4" : "bg-ink px-4 py-3"}`}>
+      <div ref={box} className={`min-h-0 flex-1 overflow-y-auto ${job.kind === "claude" ? "bg-surface px-4 pb-4" : "bg-stage px-4 py-3"}`}>
         {job.kind === "claude" ? (
           <ClaudeEvents job={job} compact={compact} />
         ) : (
-          <pre className="font-mono text-[12.5px] leading-relaxed whitespace-pre-wrap text-[#d9dde2]">
+          <pre className="font-mono text-meta leading-relaxed whitespace-pre-wrap text-stage-ink">
             {job.log.length ? job.log.join("\n") : "Starting…"}
             {job.status === "failed" && <span className="mt-2 block text-[#ff9b92]">Failed (exit code {job.exitCode}). The last lines above say why.</span>}
           </pre>
@@ -53,5 +53,5 @@ export function JobLog({ id, compact, onClose }: { id: string; compact?: boolean
 
 export function Duration({ job }: { job: Pick<JobDetail, "started" | "ended" | "status"> }) {
   const s = Math.round(((job.ended || Date.now()) - job.started) / 1000);
-  return <span className="text-[12px] text-ink-3 tabular-nums">{s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`}</span>;
+  return <span className="text-meta text-ink-3 tabular-nums">{s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`}</span>;
 }

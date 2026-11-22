@@ -13,7 +13,7 @@ export default function Jobs() {
   const shown = open || jobs[0]?.id;
   return (
     <>
-      <PageHeader title="Activity" subtitle="Everything the studio has run: voiceovers, renders, research and Claude tasks, with their full output." />
+      <PageHeader title="Activity" subtitle="Everything the studio has run: voiceovers, renders, research and Claude tasks, with their full output" />
       {jobs.length === 0 ? (
         <Empty title="Nothing has run yet" />
       ) : (
@@ -24,11 +24,11 @@ export default function Jobs() {
                 <button onClick={() => setOpen(j.id)} className={cx("w-full px-4 py-3 text-left hover:bg-raised", shown === j.id && "bg-raised")}>
                   <div className="flex items-center gap-2">
                     <Badge status={j.status} />
-                    <span className="text-[12px] text-ink-3">{KIND[j.kind] || j.kind}</span>
-                    <span className="ml-auto text-[12px] text-ink-3">{ago(j.started)}</span>
+                    <span className="text-meta text-ink-3">{KIND[j.kind] || j.kind}</span>
+                    <span className="ml-auto text-meta text-ink-3">{ago(j.started)}</span>
                   </div>
-                  <div className="mt-1 truncate text-[14px] font-medium">{j.title}</div>
-                  <div className="flex items-center gap-2 text-[12px] text-ink-3">
+                  <div className="mt-1 truncate text-body font-medium">{j.title}</div>
+                  <div className="flex items-center gap-2 text-meta text-ink-3">
                     <Duration job={j} />
                     {j.meta.project && (
                       <Link to={`/projects/${j.meta.brand}/${j.meta.project}`} onClick={(e) => e.stopPropagation()} className="truncate text-cobalt hover:underline">
