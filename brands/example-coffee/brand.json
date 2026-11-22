@@ -30,14 +30,18 @@
     "do": ["Explain one idea at a time", "Use sensory words", "Sound like a friendly barista"],
     "dont": ["Coffee snobbery", "ALL CAPS hype", "Emoji walls"],
     "vocabulary": { "use": ["fresh", "slow", "small-batch", "brew"], "avoid": ["artisanal", "elevate", "game-changer"] },
-    "examples": ["Fresh beans taste like fruit. Old beans taste like cardboard. That's the whole secret."]
+    "examples": [
+      "Fresh beans taste like fruit. Old beans taste like cardboard. That's the whole secret.",
+      "Sour shot? Grind a little finer and pull it again. Coffee forgives you if you go slow.",
+      "Grind right before you brew. That smell when the beans crack open is flavour you'd otherwise lose."
+    ]
   },
 
   "visual": {
     "colors": {
       "primary": "#2B1D14",
       "secondary": "#F3E9DC",
-      "accent": "#D9822B",
+      "accent": "#BF6A1C",
       "background": "#F8F3EC",
       "ink": "#1E140E",
       "muted": "#8A7563"

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1350" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="brand.css" />
+    <link rel="stylesheet" href="styles.css" />
+      <style id="size">:root{--w:1080px;--h:1350px;--pad-top:200px;--pad-right:110px;--pad-bottom:160px;--pad-left:110px;--headline-size:104px;}</style>
+  </head>
+  <body>
+    <!--
+      Built by scripts/build.mjs from content.json + captions.json + brand.css.
+      Everything between @build markers is regenerated on every build.
+      To hand-craft a project, delete the markers and edit freely (the build then leaves it alone).
+    -->
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="15"
+      data-width="1080"
+      data-height="1350"
+    >
+      <!-- @build:scenes:start -->
+      <div id="s0" class="clip scene hook bg-primary" data-start="0" data-duration="3" data-track-index="1"><div class="bug in"><img src="assets/brand/mark.svg" alt="" /><span>Ember &amp; Oak Coffee</span></div><h1 class="headline in">Cover slide headline with <span style="color:var(--brand-accent)">one</span> emphasised word</h1><div class="rule in"></div><p class="sub in">Swipe →</p><div class="page">1/5</div></div>
+      <div id="s1" class="clip scene point bg-bg" data-start="3" data-duration="3" data-track-index="1"><div class="bug in"><img src="assets/brand/mark.svg" alt="" /><span>Ember &amp; Oak Coffee</span></div><div class="kicker in">01</div><h2 class="headline in">First idea</h2><p class="sub in">One or two lines of supporting detail.</p><div class="page">2/5</div></div>
+      <div id="s2" class="clip scene point bg-bg" data-start="6" data-duration="3" data-track-index="1"><div class="bug in"><img src="assets/brand/mark.svg" alt="" /><span>Ember &amp; Oak Coffee</span></div><div class="kicker in">02</div><h2 class="headline in">Second idea</h2><p class="sub in">One or two lines of supporting detail.</p><div class="page">3/5</div></div>
+      <div id="s3" class="clip scene point bg-bg" data-start="9" data-duration="3" data-track-index="1"><div class="bug in"><img src="assets/brand/mark.svg" alt="" /><span>Ember &amp; Oak Coffee</span></div><div class="kicker in">03</div><h2 class="headline in">Third idea</h2><p class="sub in">One or two lines of supporting detail.</p><div class="page">4/5</div></div>
+      <div id="s4" class="clip scene cta bg-primary align-center" data-start="12" data-duration="3" data-track-index="1"><img class="logo in" src="assets/brand/mark.svg" alt="" /><h2 class="headline in">Get fresh beans</h2><p class="sub in">Save this for later</p><div class="handle in">@emberandoak</div><div class="page">5/5</div></div>
+      <!-- @build:scenes:end -->
+
+      <!-- @build:captions:start -->
+      
+      <!-- @build:captions:end -->
+
+      <!-- @build:audio:start -->
+      
+      <!-- @build:audio:end -->
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      // @build:timeline:start
+      
+      // @build:timeline:end
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,136 @@
+{
+  "source": "kokoro",
+  "script": "Stop scrolling. This one thing changes everything. First, the thing your audience gets wrong. Second, the simple fix. Third, the result they'll notice. Follow for more.",
+  "words": [
+    {
+      "text": "Stop",
+      "start": 0.07,
+      "end": 0.26
+    },
+    {
+      "text": "scrolling,",
+      "start": 0.31,
+      "end": 1.16
+    },
+    {
+      "text": "this",
+      "start": 1.2,
+      "end": 1.45
+    },
+    {
+      "text": "one",
+      "start": 1.45,
+      "end": 1.61
+    },
+    {
+      "text": "thing",
+      "start": 1.67,
+      "end": 2.03
+    },
+    {
+      "text": "changes",
+      "start": 2.03,
+      "end": 2.54
+    },
+    {
+      "text": "everything.",
+      "start": 2.54,
+      "end": 3.32
+    },
+    {
+      "text": "First,",
+      "start": 3.39,
+      "end": 3.72
+    },
+    {
+      "text": "the",
+      "start": 3.8,
+      "end": 3.95
+    },
+    {
+      "text": "thing",
+      "start": 3.95,
+      "end": 4.19
+    },
+    {
+      "text": "your",
+      "start": 4.51,
+      "end": 4.52
+    },
+    {
+      "text": "audience",
+      "start": 4.52,
+      "end": 5.03
+    },
+    {
+      "text": "gets",
+      "start": 5.03,
+      "end": 5.24
+    },
+    {
+      "text": "wrong.",
+      "start": 5.28,
+      "end": 5.84
+    },
+    {
+      "text": "Second,",
+      "start": 5.93,
+      "end": 6.49
+    },
+    {
+      "text": "the",
+      "start": 6.49,
+      "end": 6.71
+    },
+    {
+      "text": "simple",
+      "start": 7.03,
+      "end": 7.22
+    },
+    {
+      "text": "fix.",
+      "start": 7.26,
+      "end": 7.72
+    },
+    {
+      "text": "Third,",
+      "start": 7.79,
+      "end": 8.12
+    },
+    {
+      "text": "the",
+      "start": 8.2,
+      "end": 8.33
+    },
+    {
+      "text": "result",
+      "start": 8.33,
+      "end": 8.59
+    },
+    {
+      "text": "they'll",
+      "start": 8.91,
+      "end": 9.09
+    },
+    {
+      "text": "notice.",
+      "start": 9.14,
+      "end": 9.72
+    },
+    {
+      "text": "Follow",
+      "start": 9.79,
+      "end": 10.09
+    },
+    {
+      "text": "for",
+      "start": 10.09,
+      "end": 10.27
+    },
+    {
+      "text": "more.",
+      "start": 10.27,
+      "end": 10.59
+    }
+  ]
+}

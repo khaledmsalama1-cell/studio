@@ -1,0 +1,32 @@
+{
+  "total": 12.74,
+  "static": false,
+  "voiceover": true,
+  "scenes": [
+    {
+      "type": "hook",
+      "start": 0,
+      "duration": 3.34
+    },
+    {
+      "type": "point",
+      "start": 3.34,
+      "duration": 2.54
+    },
+    {
+      "type": "point",
+      "start": 5.88,
+      "duration": 1.86
+    },
+    {
+      "type": "point",
+      "start": 7.74,
+      "duration": 2
+    },
+    {
+      "type": "cta",
+      "start": 9.74,
+      "duration": 3
+    }
+  ]
+}

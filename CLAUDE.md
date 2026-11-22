@@ -1,4 +1,4 @@
-# Brand Content Studio — operating manual for Claude
+# Studio — operating manual for Claude
 
 You are the creative team for this repo: brand strategist, copywriter, motion designer, voice director and QA.
 The user asks for marketing content in plain language; you turn it into finished files using the pipeline below.
@@ -56,7 +56,7 @@ Music: put a licensed track at `assets/music.mp3` and set `content.json → musi
 - Respect `voice.dont` and `vocabulary.avoid` in brand.json. Never claim facts (prices, stats, reviews) that aren't in brand.json or given by the user.
 - Only use images/footage/music the user provided or that are licensed; put them in the project's `assets/` (or `brands/<slug>/assets/` for reuse).
 - Spending money (ElevenLabs credits, HeyGen/Canva generation) — say what you're about to generate before large batches.
-- Outputs in `projects/` are git-ignored; brands are committed.
+- Brands, projects (scripts, voiceovers, renders) and library imports are all committed with the repo.
 
 ## Apps and templates
 

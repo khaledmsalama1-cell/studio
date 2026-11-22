@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "name": "Ember & Oak Coffee",
+    "slug": "example-coffee",
+    "tagline": "Small-batch coffee, roasted the slow way.",
+    "colors": {
+      "primary": "#2B1D14",
+      "secondary": "#F3E9DC",
+      "accent": "#D9822B",
+      "background": "#F8F3EC",
+      "ink": "#1E140E",
+      "muted": "#8A7563"
+    },
+    "fonts": {
+      "display": {
+        "family": "Fraunces",
+        "weight": 700,
+        "google": true
+      },
+      "body": {
+        "family": "DM Sans",
+        "weight": 400,
+        "google": true
+      }
+    },
+    "radius": 28,
+    "motion": {
+      "energy": "calm",
+      "ease": "power2.out",
+      "notes": "Slow fades and gentle rises. Nothing bounces."
+    },
+    "handle": "@emberandoak",
+    "ctas": [
+      "Get fresh beans",
+      "Link in bio",
+      "Save this for tomorrow's brew"
+    ]
+  },
+  "brandSlug": "example-coffee",
+  "language": "en",
+  "format": "reel",
+  "engine": "hyperframes",
+  "static": false,
+  "logos": {
+    "primary": "primary.svg",
+    "mark": "mark.svg",
+    "onDark": "onDark.svg"
+  },
+  "createdAt": "2026-11-22",
+  "status": "draft"
+}

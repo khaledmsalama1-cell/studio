@@ -1,4 +1,4 @@
-# Brand Content Studio
+# Studio
 
 An open, scriptable AI marketing studio you run from **Claude Code** — the same idea as Google Pomelli (website → brand DNA → on-brand campaigns), extended to **short-form video**.
 
@@ -102,7 +102,8 @@ brand.json ─► content.json ─► voiceover.mp3 + captions.json ─► index
 │   ├── preview.mjs  render.mjs  variants.mjs  doctor.mjs
 │   └── lib/
 ├── docs/                         # setup, brand fields, engines, extending
-└── projects/                     # your work: projects/<brand>/<date>-<name>/ (git-ignored)
+├── library/                      # imported media and generated voice samples
+└── projects/                     # your work: projects/<brand>/<date>-<name>/
     └── <brand>/<date>-<name>/
         ├── brief.md  content.json  captions.json  caption.md  project.json  timing.json
         ├── index.html  styles.css  brand.css        # HyperFrames composition

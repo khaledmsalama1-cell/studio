@@ -1,0 +1,17 @@
+/* Generated from brands/example-coffee/brand.json by scripts/new-project.mjs. Edit the brand, then run: npm run brand:sync -- <project> */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@400;700&family=DM+Sans:wght@400&display=block");
+
+:root {
+  --brand-primary: #2B1D14;
+  --brand-secondary: #F3E9DC;
+  --brand-accent: #D9822B;
+  --brand-bg: #F8F3EC;
+  --brand-ink: #1E140E;
+  --brand-muted: #8A7563;
+  --font-display: "Fraunces", system-ui, sans-serif;
+  --font-display-weight: 700;
+  --font-body: "DM Sans", system-ui, sans-serif;
+  --font-body-weight: 400;
+  --radius: 28px;
+  --ease: "power2.out";
+}

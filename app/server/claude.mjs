@@ -29,7 +29,7 @@ export function saveSettings(next) {
   fs.writeFileSync(SETTINGS, JSON.stringify({ ...cur, ...next }, null, 2));
 }
 
-const UI_CONTEXT = `You are running inside the Brand Content Studio web UI as a background task.
+const UI_CONTEXT = `You are running inside the Studio web UI as a background task.
 The person reads your messages in a chat panel and can reply in a follow-up turn, but cannot answer
 interactive questions or approve permission prompts mid-task. So: make sensible decisions, finish the
 task end to end with the repo's npm scripts and skills, and if something truly needs their input,

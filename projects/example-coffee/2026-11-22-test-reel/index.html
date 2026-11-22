@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <link rel="stylesheet" href="brand.css" />
+    <link rel="stylesheet" href="styles.css" />
+                <style id="size">:root{--w:1080px;--h:1920px;--cap-top:1000px;}</style>
+  </head>
+  <body>
+    <!--
+      Built by scripts/build.mjs from content.json + captions.json + brand.css.
+      Everything between @build markers is regenerated on every build.
+      To hand-craft a project, delete the markers and edit freely (the build then leaves it alone).
+    -->
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="12.74"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- @build:scenes:start -->
+      <div id="s0" class="clip scene hook bg-primary with-captions" data-start="0" data-duration="3.34" data-track-index="1"><h1 class="headline in">The hook goes <span style="color:var(--brand-accent)">here</span></h1><div class="rule in"></div></div>
+      <div id="s1" class="clip scene point bg-bg with-captions" data-start="3.34" data-duration="2.54" data-track-index="1"><div class="kicker in">01</div><h2 class="headline in">First point</h2></div>
+      <div id="s2" class="clip scene point bg-bg with-captions" data-start="5.88" data-duration="1.86" data-track-index="1"><div class="kicker in">02</div><h2 class="headline in">Second point</h2></div>
+      <div id="s3" class="clip scene point bg-bg with-captions" data-start="7.74" data-duration="2" data-track-index="1"><div class="kicker in">03</div><h2 class="headline in">Third point</h2></div>
+      <div id="s4" class="clip scene cta bg-primary align-center with-captions" data-start="9.74" data-duration="3" data-track-index="1"><img class="logo in" src="assets/brand/mark.svg" alt="" /><h2 class="headline in">Get fresh beans</h2><div class="handle in">@emberandoak</div></div>
+      <!-- @build:scenes:end -->
+
+      <!-- @build:captions:start -->
+      <div id="c0" class="clip cap" data-start="0.07" data-duration="1.13" data-track-index="2"><span id="w0" class="w">Stop</span><span id="w1" class="w">scrolling,</span></div>
+      <div id="c1" class="clip cap" data-start="1.2" data-duration="0.83" data-track-index="2"><span id="w2" class="w">this</span><span id="w3" class="w">one</span><span id="w4" class="w">thing</span></div>
+      <div id="c2" class="clip cap" data-start="2.03" data-duration="1.36" data-track-index="2"><span id="w5" class="w">changes</span><span id="w6" class="w">everything.</span></div>
+      <div id="c3" class="clip cap" data-start="3.39" data-duration="0.41" data-track-index="2"><span id="w7" class="w">First,</span></div>
+      <div id="c4" class="clip cap" data-start="3.8" data-duration="0.72" data-track-index="2"><span id="w8" class="w">the</span><span id="w9" class="w">thing</span><span id="w10" class="w">your</span></div>
+      <div id="c5" class="clip cap" data-start="4.52" data-duration="1.41" data-track-index="2"><span id="w11" class="w">audience</span><span id="w12" class="w">gets</span><span id="w13" class="w">wrong.</span></div>
+      <div id="c6" class="clip cap" data-start="5.93" data-duration="0.56" data-track-index="2"><span id="w14" class="w">Second,</span></div>
+      <div id="c7" class="clip cap" data-start="6.49" data-duration="1.3" data-track-index="2"><span id="w15" class="w">the</span><span id="w16" class="w">simple</span><span id="w17" class="w">fix.</span></div>
+      <div id="c8" class="clip cap" data-start="7.79" data-duration="0.41" data-track-index="2"><span id="w18" class="w">Third,</span></div>
+      <div id="c9" class="clip cap" data-start="8.2" data-duration="0.94" data-track-index="2"><span id="w19" class="w">the</span><span id="w20" class="w">result</span><span id="w21" class="w">they'll</span></div>
+      <div id="c10" class="clip cap" data-start="9.14" data-duration="0.65" data-track-index="2"><span id="w22" class="w">notice.</span></div>
+      <div id="c11" class="clip cap" data-start="9.79" data-duration="1.1" data-track-index="2"><span id="w23" class="w">Follow</span><span id="w24" class="w">for</span><span id="w25" class="w">more.</span></div>
+      <!-- @build:captions:end -->
+
+      <!-- @build:audio:start -->
+      <audio id="vo" src="assets/voiceover.mp3" data-start="0" data-duration="10.71" data-track-index="3"></audio>
+      <!-- @build:audio:end -->
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      // @build:timeline:start
+      tl.fromTo("#s0 .in", { y: 24 }, { y: 0, duration: 1.35, stagger: 0.12, ease: "power2.out" }, 0);
+      tl.fromTo("#s1 .in", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.9, stagger: 0.12, ease: "power2.out" }, 3.39);
+      tl.fromTo("#s2 .in", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.9, stagger: 0.12, ease: "power2.out" }, 5.93);
+      tl.fromTo("#s3 .in", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.9, stagger: 0.12, ease: "power2.out" }, 7.79);
+      tl.fromTo("#s4 .in", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.9, stagger: 0.12, ease: "power2.out" }, 9.79);
+      tl.fromTo("#c0", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 0.07);
+      tl.set("#w0", { color: "#D9822B" }, 0.07).set("#w0", { color: "#ffffff" }, 0.31);
+      tl.set("#w1", { color: "#D9822B" }, 0.31).set("#w1", { color: "#ffffff" }, 1.46);
+      tl.fromTo("#c1", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 1.2);
+      tl.set("#w2", { color: "#D9822B" }, 1.2).set("#w2", { color: "#ffffff" }, 1.45);
+      tl.set("#w3", { color: "#D9822B" }, 1.45).set("#w3", { color: "#ffffff" }, 1.67);
+      tl.set("#w4", { color: "#D9822B" }, 1.67).set("#w4", { color: "#ffffff" }, 2.33);
+      tl.fromTo("#c2", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 2.03);
+      tl.set("#w5", { color: "#D9822B" }, 2.03).set("#w5", { color: "#ffffff" }, 2.54);
+      tl.set("#w6", { color: "#D9822B" }, 2.54).set("#w6", { color: "#ffffff" }, 3.62);
+      tl.fromTo("#c3", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 3.39);
+      tl.set("#w7", { color: "#D9822B" }, 3.39).set("#w7", { color: "#ffffff" }, 4.02);
+      tl.fromTo("#c4", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 3.8);
+      tl.set("#w8", { color: "#D9822B" }, 3.8).set("#w8", { color: "#ffffff" }, 3.95);
+      tl.set("#w9", { color: "#D9822B" }, 3.95).set("#w9", { color: "#ffffff" }, 4.51);
+      tl.set("#w10", { color: "#D9822B" }, 4.51).set("#w10", { color: "#ffffff" }, 4.82);
+      tl.fromTo("#c5", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 4.52);
+      tl.set("#w11", { color: "#D9822B" }, 4.52).set("#w11", { color: "#ffffff" }, 5.03);
+      tl.set("#w12", { color: "#D9822B" }, 5.03).set("#w12", { color: "#ffffff" }, 5.28);
+      tl.set("#w13", { color: "#D9822B" }, 5.28).set("#w13", { color: "#ffffff" }, 6.14);
+      tl.fromTo("#c6", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 5.93);
+      tl.set("#w14", { color: "#D9822B" }, 5.93).set("#w14", { color: "#ffffff" }, 6.79);
+      tl.fromTo("#c7", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 6.49);
+      tl.set("#w15", { color: "#D9822B" }, 6.49).set("#w15", { color: "#ffffff" }, 7.03);
+      tl.set("#w16", { color: "#D9822B" }, 7.03).set("#w16", { color: "#ffffff" }, 7.26);
+      tl.set("#w17", { color: "#D9822B" }, 7.26).set("#w17", { color: "#ffffff" }, 8.02);
+      tl.fromTo("#c8", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 7.79);
+      tl.set("#w18", { color: "#D9822B" }, 7.79).set("#w18", { color: "#ffffff" }, 8.42);
+      tl.fromTo("#c9", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 8.2);
+      tl.set("#w19", { color: "#D9822B" }, 8.2).set("#w19", { color: "#ffffff" }, 8.33);
+      tl.set("#w20", { color: "#D9822B" }, 8.33).set("#w20", { color: "#ffffff" }, 8.91);
+      tl.set("#w21", { color: "#D9822B" }, 8.91).set("#w21", { color: "#ffffff" }, 9.39);
+      tl.fromTo("#c10", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 9.14);
+      tl.set("#w22", { color: "#D9822B" }, 9.14).set("#w22", { color: "#ffffff" }, 10.02);
+      tl.fromTo("#c11", { scale: 0.92 }, { scale: 1, duration: 0.12, ease: "back.out(2)" }, 9.79);
+      tl.set("#w23", { color: "#D9822B" }, 9.79).set("#w23", { color: "#ffffff" }, 10.09);
+      tl.set("#w24", { color: "#D9822B" }, 10.09).set("#w24", { color: "#ffffff" }, 10.27);
+      tl.set("#w25", { color: "#D9822B" }, 10.27).set("#w25", { color: "#ffffff" }, 10.89);
+      // @build:timeline:end
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

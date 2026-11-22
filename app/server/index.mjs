@@ -1,4 +1,4 @@
-// Brand Content Studio — local API + UI server.  npm run app  →  http://127.0.0.1:4317
+// Studio — local API + UI server.  npm run app  →  http://127.0.0.1:4317
 // Binds to loopback only and rejects foreign Host headers (DNS-rebinding guard): this server can run
 // scripts and Claude on your machine, so it must never be reachable from the network.
 import fs from "node:fs";
@@ -694,5 +694,5 @@ app.get("*", (c) => {
 });
 
 serve({ fetch: app.fetch, hostname: "127.0.0.1", port: PORT }, () => {
-  console.log(`Brand Content Studio → http://127.0.0.1:${PORT}${DEV ? "  (API only; UI on :5173)" : ""}`);
+  console.log(`Studio → http://127.0.0.1:${PORT}${DEV ? "  (API only; UI on :5173)" : ""}`);
 });

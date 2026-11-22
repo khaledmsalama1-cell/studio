@@ -1,0 +1,37 @@
+{
+  "format": "carousel",
+  "width": 1080,
+  "height": 1350,
+  "static": true,
+  "bug": true,
+  "scenes": [
+    {
+      "type": "hook",
+      "text": "Cover slide headline with *one* emphasised word",
+      "sub": "Swipe →"
+    },
+    {
+      "type": "point",
+      "kicker": "01",
+      "text": "First idea",
+      "sub": "One or two lines of supporting detail."
+    },
+    {
+      "type": "point",
+      "kicker": "02",
+      "text": "Second idea",
+      "sub": "One or two lines of supporting detail."
+    },
+    {
+      "type": "point",
+      "kicker": "03",
+      "text": "Third idea",
+      "sub": "One or two lines of supporting detail."
+    },
+    {
+      "type": "cta",
+      "text": "Get fresh beans",
+      "sub": "Save this for later"
+    }
+  ]
+}
