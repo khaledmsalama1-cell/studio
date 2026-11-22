@@ -1,31 +1,184 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Palette, Plus } from "lucide-react";
 import { api, type BrandSummary } from "../lib/api";
 import { useRun } from "../lib/useRun";
 import { useBrandFonts } from "../components/ScenePreview";
-import { Button, Dialog, Empty, ErrorNote, Field, Input, PageHeader, cx } from "../components/ui";
+import { Button, Dialog, Empty, ErrorNote, Field, Input, cx } from "../components/ui";
+
+// Which starter industries fit the user's brands: the starter a brand came from, else words in its name and tagline
+const INDUSTRY_WORDS: Record<string, string[]> = {
+  coffee: ["coffee", "café", "cafe", "espresso", "roast", "bean"], bakery: ["bake", "bread", "pastry", "cake", "patisserie"], restaurant: ["restaurant", "kitchen", "food", "dining", "eat"],
+  skincare: ["skin", "beauty", "serum", "cosmetic"], fitness: ["gym", "fitness", "strength", "run", "training"], yoga: ["yoga", "wellness", "breath", "pilates"],
+  fashion: ["fashion", "boutique", "dress", "wear", "tailor"], streetwear: ["street", "sneaker", "hoodie", "skate"], jewelry: ["jewel", "gold", "silver", "ring"],
+  pets: ["pet", "dog", "cat", "paw"], plants: ["plant", "garden", "green", "leaf"], books: ["book", "read", "story", "library"], saas: ["software", "app", "saas", "tool", "platform"],
+  fintech: ["money", "bank", "pay", "finance", "invest"], realestate: ["home", "estate", "realty", "property"], dental: ["dental", "clinic", "health", "care"],
+  travel: ["travel", "tour", "trip", "journey"], photo: ["photo", "studio", "film", "wedding"], kids: ["kids", "school", "learn", "tutor"], eco: ["eco", "refill", "sustainable", "reuse"],
+};
 
 export default function Brands() {
-  const { data } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
+  const { data, isLoading } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
+  const { data: st } = useQuery({ queryKey: ["brand-starters"], queryFn: () => api.get<{ starters: Starter[]; status: { error: string | null } }>("/api/brand-starters") });
   const [params, setParams] = useSearchParams();
   const mode = params.get("new");
+  const [picked, setPicked] = useState<Starter | null>(null);
+  const [industry, setIndustry] = useState("");
+  const brands = useMemo(() => [...(data || [])].sort((a, b) => b.updated - a.updated), [data]);
+  const starters = st?.starters || [];
+  const latest = brands[0];
+
+  const recommended = useMemo(() => {
+    const scores = new Map<string, number>();
+    for (const b of brands) {
+      const from = starters.find((x) => x.id === b.template)?.industry;
+      if (from) scores.set(from, (scores.get(from) || 0) + 3);
+      const text = `${b.name} ${b.tagline || ""}`.toLowerCase();
+      for (const [ind, words] of Object.entries(INDUSTRY_WORDS)) if (words.some((w) => text.includes(w))) scores.set(ind, (scores.get(ind) || 0) + 1);
+    }
+    const used = new Set(brands.map((b) => b.template));
+    const fit = starters.filter((x) => scores.has(x.industry) && !used.has(x.id)).sort((a, b) => (scores.get(b.industry) || 0) - (scores.get(a.industry) || 0));
+    // Fill up with one from each other industry so there's always variety
+    const seen = new Set(fit.map((x) => x.industry));
+    const rest = starters.filter((x) => !seen.has(x.industry) && (seen.add(x.industry), true));
+    return [...fit.slice(0, 4), ...rest].slice(0, 4);
+  }, [brands, starters]);
+
+  const industries = useMemo(() => [...new Map(starters.map((s) => [s.industry, s.industryLabel])).entries()], [starters]);
+  // "One of each": per industry, a starter that isn't already in the recommended row
+  const shown = new Set(recommended.map((r) => r.id));
+  const explore = industry
+    ? starters.filter((s) => s.industry === industry)
+    : industries.map(([id]) => starters.find((s) => s.industry === id && !shown.has(s.id)) || starters.find((s) => s.industry === id)!).slice(0, 8);
+  const open = (s: Starter) => (setPicked(s), setParams({ new: "template" }));
+
   return (
     <>
-      <PageHeader
-        title="Brands"
-        subtitle="Each brand's DNA — colours, type, voice, audience — styles every reel, post and caption made for it"
-        actions={
-          <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setParams({ new: "template" })}>
-            Add brand
-          </Button>
-        }
-      />
-      {data?.length === 0 && <Empty title="No brands yet">Add one from its website, or let Claude build a new brand with you.</Empty>}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{data?.map((b) => <BrandCard key={b.slug} b={b} />)}</div>
-      <NewBrandDialog open={!!mode} initialMode={mode === "create" ? "create" : mode === "website" ? "website" : "template"} onClose={() => setParams({})} />
+      <div className="mb-8 flex flex-col items-center gap-2 pt-2 text-center">
+        <h1 className="flex items-center gap-3 text-[36px] tracking-[-0.03em] md:text-[44px]">
+          <span className="flex size-11 items-center justify-center rounded-full bg-surface ring-1 ring-line-soft">
+            <Palette className="size-5 text-ink-2" strokeWidth={1.5} />
+          </span>
+          Brand Kit
+        </h1>
+        <p className="max-w-[60ch] text-body text-ink-2">Each brand's colours, type, logo, voice and audience style every reel, post and caption made for it</p>
+      </div>
+
+      {/* Hero: what a brand kit does, next to the latest brand in its own identity */}
+      <section className="mb-12 grid overflow-hidden rounded-[18px] border border-line-soft bg-surface md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <div className="flex flex-col justify-center gap-4 p-7 md:p-10">
+          <h2 className="text-[28px] leading-tight tracking-[-0.02em]">Bring your brand to life, across everything you make</h2>
+          <p className="max-w-[52ch] text-body text-ink-2">
+            Start from one of {starters.length || 100} ready brand kits, pull one from your website, or build a new one with Claude. Every template, reel and caption then comes out on-brand.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => (setPicked(null), setParams({ new: "template" }))}>
+              Add a brand
+            </Button>
+            <Button onClick={() => setParams({ new: "website" })}>From your website</Button>
+          </div>
+        </div>
+        <LatestSpecimen b={latest} />
+      </section>
+
+      <section className="mb-12">
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="text-xl">Your brands</h2>
+          <span className="text-caption text-ink-3 tabular-nums">{brands.length} {brands.length === 1 ? "brand" : "brands"} · most recent first</span>
+        </div>
+        {isLoading ? (
+          <p className="text-ink-3">Loading…</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {brands.map((b) => (
+              <BrandCard key={b.slug} b={b} />
+            ))}
+            <button onClick={() => (setPicked(null), setParams({ new: "template" }))} className="flex min-h-[208px] flex-col items-center justify-center gap-3 rounded-[var(--radius-panel)] border-2 border-dashed border-line text-ink-2 transition-colors duration-150 hover:border-ink-3/60 hover:text-ink">
+              <span className="flex size-11 items-center justify-center rounded-full bg-surface ring-1 ring-line-soft">
+                <Plus className="size-5" />
+              </span>
+              <span className="text-body">New brand</span>
+            </button>
+          </div>
+        )}
+      </section>
+
+      {recommended.length > 0 && (
+        <section className="mb-12">
+          <div className="mb-1 flex items-end justify-between">
+            <h2 className="text-xl">Recommended for you</h2>
+            <button onClick={() => (setPicked(null), setParams({ new: "template" }))} className="text-body text-cobalt hover:underline">
+              See all {starters.length}
+            </button>
+          </div>
+          <p className="mb-4 text-caption text-ink-3">{brands.length ? "Brand templates close to what you're already making" : "A few brand templates to start from"}</p>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {recommended.map((s) => (
+              <StarterCard key={s.id} s={s} onClick={() => open(s)} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {starters.length > 0 && (
+        <section className="mb-12">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <h2 className="text-xl">Explore brand templates</h2>
+            <span className="text-caption text-ink-3">{industry ? `${explore.length} in ${industries.find(([id]) => id === industry)?.[1]}` : `${industries.length} industries`}</span>
+          </div>
+          <div className="mb-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+            <button onClick={() => setIndustry("")} className={cx("h-9 flex-none rounded-full border px-4 text-caption whitespace-nowrap transition-colors duration-150", !industry ? "border-ink bg-raised font-medium" : "border-line-soft text-ink-2 hover:border-ink-3/50 hover:text-ink")}>
+              One of each
+            </button>
+            {industries.map(([id, label]) => (
+              <button key={id} onClick={() => setIndustry(id)} className={cx("h-9 flex-none rounded-full border px-4 text-caption whitespace-nowrap transition-colors duration-150", industry === id ? "border-ink bg-raised font-medium" : "border-line-soft text-ink-2 hover:border-ink-3/50 hover:text-ink")}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {explore.map((s) => (
+              <StarterCard key={s.id} s={s} onClick={() => open(s)} />
+            ))}
+          </div>
+        </section>
+      )}
+      {!starters.length && st && <Empty title="Brand templates aren't synced">{st.status.error || "Open Apps → Sources and press Refresh to load the 100 brand templates."}</Empty>}
+
+      <NewBrandDialog open={!!mode} initialMode={mode === "create" ? "create" : mode === "website" ? "website" : "template"} initialStarter={mode === "template" ? picked : null} onClose={() => (setParams({}), setPicked(null))} />
     </>
+  );
+}
+
+/** The most recent brand, drawn as a specimen: display type, tagline, palette, logo */
+function LatestSpecimen({ b }: { b?: BrandSummary }) {
+  useBrandFonts(b?.fonts);
+  if (!b) return <div className="hidden min-h-[240px] bg-ground md:block" />;
+  const c = b.colors as Record<string, string>;
+  const disp = { fontFamily: `"${b.fonts.display?.family}", system-ui`, fontWeight: b.fonts.display?.weight || 700 };
+  return (
+    <Link to={`/brands/${b.slug}`} className="group relative flex min-h-[240px] items-end overflow-hidden p-7" style={{ background: c.primary, color: c.secondary }}>
+      <span className="pointer-events-none absolute -top-8 right-6 text-[170px] leading-none select-none" style={{ ...disp, color: c.accent, letterSpacing: "-0.06em" }} aria-hidden>
+        Aa
+      </span>
+      {b.logo && (
+        <span className="absolute top-6 left-7 flex size-11 items-center justify-center rounded-lg" style={{ background: c.background }}>
+          <img src={b.logo} alt="" className="size-8 object-contain" />
+        </span>
+      )}
+      <div className="relative w-full">
+        <p className="text-meta opacity-70">Latest · {b.name}</p>
+        <p className="mt-1 mb-4 max-w-[24ch] text-[24px] leading-[1.1]" style={{ ...disp, letterSpacing: "-0.02em" }}>
+          {b.tagline || b.name}
+        </p>
+        <div className="flex h-2.5 overflow-hidden rounded-full shadow-[0_0_0_1px_rgb(255_255_255/0.18)]">
+          {["primary", "secondary", "accent", "background", "ink", "muted"].map((k) => (
+            <span key={k} className="flex-1" style={{ background: c[k] }} />
+          ))}
+        </div>
+        <p className="mt-3 text-meta opacity-70 transition-opacity duration-150 group-hover:opacity-100">Open the kit →</p>
+      </div>
+    </Link>
   );
 }
 
@@ -63,7 +216,7 @@ type Mode = "template" | "website" | "create";
 type Starter = { id: string; name: string; industry: string; industryLabel: string; tagline: string; colors: Record<string, string>; fonts: BrandSummary["fonts"]; logoSvg: string };
 const svgUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
-function NewBrandDialog({ open, onClose, initialMode }: { open: boolean; onClose: () => void; initialMode: Mode }) {
+function NewBrandDialog({ open, onClose, initialMode, initialStarter = null }: { open: boolean; onClose: () => void; initialMode: Mode; initialStarter?: Starter | null }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -75,8 +228,8 @@ function NewBrandDialog({ open, onClose, initialMode }: { open: boolean; onClose
   const qc = useQueryClient();
   const { run } = useRun();
   useEffect(() => {
-    if (open) (setMode(initialMode), setStarter(null), setError(null));
-  }, [open, initialMode]);
+    if (open) (setMode(initialMode), setStarter(initialStarter), setName(""), setError(null));
+  }, [open, initialMode, initialStarter]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

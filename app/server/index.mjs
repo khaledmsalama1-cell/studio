@@ -50,6 +50,7 @@ function brandSummary(slug) {
     tagline: b.tagline,
     website: b.website,
     ctas: b.ctas || [],
+    template: b.template || null,
     colors: b.visual?.colors || {},
     fonts: b.visual?.fonts || {},
     logo,

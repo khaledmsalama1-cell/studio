@@ -10,6 +10,7 @@ export type BrandSummary = {
   tagline?: string;
   website?: string;
   ctas?: string[];
+  template?: string | null;
   colors: Colors;
   fonts: Fonts;
   logo: string | null;
