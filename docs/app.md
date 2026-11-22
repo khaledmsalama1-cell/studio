@@ -4,7 +4,7 @@ A local web app for everything in this repo. Start it from the repo root:
 
 ```bash
 npm run app            # installs + builds on first run, then serves http://127.0.0.1:4317
-npm run app:dev        # development: API on :4317, hot-reloading UI on http://127.0.0.1:5173
+npm run app:dev        # hot reload: UI on http://127.0.0.1:5173 updates as you edit app/web, API restarts on app/server edits
 ```
 
 | Page | What you do there |
