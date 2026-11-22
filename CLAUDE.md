@@ -48,6 +48,14 @@ Provider is set per brand in `brand.json → audio.voices.<name>`:
 - Any other tool / voice studio / real recording: `npm run voice -- <project> --audio take.wav` — it is transcribed for caption timings.
 Music: put a licensed track at `assets/music.mp3` and set `content.json → music.file`, or generate one with ElevenLabs `compose_music`.
 
+## Secrets and privacy (always)
+
+- **Never commit** API keys, tokens, passwords, private keys, or personal email addresses — not in code, docs, examples, test files or commit messages.
+- Keys live only in `.env` (git-ignored). `.env.example` lists the key names with **empty** values; when a feature needs a new key, add its name there, never its value. The app writes keys to `.env` itself (Settings and Apps pages).
+- Commits use the GitHub noreply address (`<id>+<user>@users.noreply.github.com`), never a personal email.
+- `.githooks/pre-commit` runs `scripts/check-secrets.mjs` and blocks commits that break these rules (`npm run setup:hooks` turns it on in a fresh clone). If it flags something, remove the data; don't bypass the hook with `--no-verify`. If it's a false alarm, fix the pattern in the script.
+- Before making a repo public or pushing, run `node scripts/check-secrets.mjs --all`.
+
 ## Rules
 
 - Hooks win or lose the video: first 1.5 s must state the payoff or tension. Write 3 hook options in brief.md and pick one.

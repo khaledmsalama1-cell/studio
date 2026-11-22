@@ -1,5 +1,15 @@
 node_modules/
+# Secrets: keys live only in .env (see .env.example for the names)
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+id_rsa*
+id_ed25519*
+credentials.json
+secrets.json
 .venv-voice/
 .claude/settings.local.json
 .mcp.json

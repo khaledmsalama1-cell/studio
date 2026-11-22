@@ -23,6 +23,8 @@
     "render": "node scripts/render.mjs",
     "variants": "node scripts/variants.mjs",
     "doctor": "node scripts/doctor.mjs",
+    "setup:hooks": "git config core.hooksPath .githooks",
+    "check:secrets": "node scripts/check-secrets.mjs --all",
     "setup:remotion": "cd engines/remotion && npm install",
     "setup:voice": "uv venv .venv-voice --python 3.12 && uv pip install --python .venv-voice/bin/python kokoro-onnx soundfile"
   }

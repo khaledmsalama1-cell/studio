@@ -24,4 +24,5 @@ check("ELEVENLABS_API_KEY", () => { if (!process.env.ELEVENLABS_API_KEY) throw 0
 check("yt-dlp", () => v("yt-dlp"), "optional: social research (pipx install yt-dlp / uv tool install yt-dlp)");
 check("APIFY_TOKEN", () => { if (!process.env.APIFY_TOKEN) throw 0; return "set"; }, "optional: Instagram profiles / Facebook pages");
 check("META_ACCESS_TOKEN", () => { if (!process.env.META_ACCESS_TOKEN) throw 0; return "set"; }, "optional: official Instagram/Facebook Graph API");
+check("Secret check before commits", () => { if (v("git", ["config", "core.hooksPath"]) !== ".githooks") throw 0; return "on"; }, "run: npm run setup:hooks");
 check("gh (GitHub CLI)", () => v("gh"), "optional");
