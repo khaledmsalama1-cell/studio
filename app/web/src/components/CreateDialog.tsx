@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Clapperboard, Film, Images, LayoutGrid, MessageSquareText, Ruler, Search, Smartphone, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Clapperboard, ExternalLink, Film, Images, LayoutGrid, LayoutTemplate, MessageSquareText, Ruler, Search, Smartphone, Sparkles, X } from "lucide-react";
 import { api, type BrandSummary, type Meta, type Scene } from "../lib/api";
 import { useRun } from "../lib/useRun";
 import { SceneFrame, Stage } from "./ScenePreview";
 import { Button, ErrorNote, Field, Input, Select, Textarea, cx } from "./ui";
 
 // ---------------------------------------------------------------- catalogue
-export type Cat = "for-you" | "short" | "social" | "stories" | "long" | "custom" | "idea";
+export type Cat = "for-you" | "templates" | "short" | "social" | "stories" | "long" | "custom" | "idea";
 export type Entry = {
   id: string;
   preset: string;
@@ -19,6 +19,7 @@ export type Entry = {
   look: "phone" | "stack" | "flat" | "story" | "screen";
   sample: (b: BrandSummary) => Scene;
   claim?: string; // what Claude should make, if a description is given
+  template?: string; // id in the studio-templates registry
 };
 
 const product = (b: BrandSummary) => b.tagline?.split(/[.,]/)[0] || b.name;
@@ -38,6 +39,7 @@ export const ENTRIES: Entry[] = [
 
 const CATS: { id: Cat; label: string; icon: ReactNode }[] = [
   { id: "for-you", label: "For you", icon: <LayoutGrid /> },
+  { id: "templates", label: "Templates", icon: <LayoutTemplate /> },
   { id: "short", label: "Short videos", icon: <Smartphone /> },
   { id: "social", label: "Social posts", icon: <Images /> },
   { id: "stories", label: "Stories", icon: <Clapperboard /> },
@@ -81,6 +83,9 @@ export function CreateDialog({ open, onClose, defaultBrand, start }: { open: boo
   const brand = brands?.find((b) => b.slug === brandSlug) || brands?.[0];
   const presets = Object.fromEntries((meta?.formats || []).map((f) => [f.id, f]));
   const q = query.trim().toLowerCase();
+  const { data: tplData } = useQuery({ queryKey: ["templates"], queryFn: () => api.get<{ templates: Template[]; status: { count: number; error: string | null } }>("/api/templates"), enabled: open });
+  const templates = tplData?.templates || [];
+  const tplHits = q ? templates.filter((t) => t.kind === "studio" && `${t.name} ${t.description} ${t.category} ${(t.tags || []).join(" ")}`.toLowerCase().includes(q)).slice(0, 12) : [];
   const list = q ? ENTRIES.filter((e) => `${e.name} ${e.note} ${e.keywords}`.toLowerCase().includes(q)) : ENTRIES.filter((e) => e.cats.includes(cat));
 
   return (
@@ -154,6 +159,8 @@ export function CreateDialog({ open, onClose, defaultBrand, start }: { open: boo
                 <CustomSize brand={brand} value={custom} onChange={setCustom} onNext={() => setPicked({ ...ENTRIES.find((e) => e.preset === custom.kind)!, id: "custom", name: `Custom ${custom.w} × ${custom.h}`, preset: custom.kind })} />
               ) : cat === "idea" && !q ? (
                 <IdeaStart brand={brand} onDone={onClose} />
+              ) : cat === "templates" && !q ? (
+                <TemplatesView templates={templates} error={tplData?.status.error || null} brand={brand} presets={presets} onPick={setPicked} onDone={onClose} />
               ) : (
                 <>
                   <h3 className="mb-4 text-lg">{q ? (list.length ? `Results for “${query}”` : "No ready-made format for that") : CATS.find((c) => c.id === cat)?.label === "For you" ? `Popular for ${brand.name}` : CATS.find((c) => c.id === cat)?.label}</h3>
@@ -162,6 +169,17 @@ export function CreateDialog({ open, onClose, defaultBrand, start }: { open: boo
                       <Tile key={e.id} entry={e} brand={brand} preset={presets[e.preset]} onPick={() => setPicked(e)} />
                     ))}
                   </div>
+                  {q && tplHits.length > 0 && (
+                    <div className="mt-8">
+                      <h3 className="mb-4 text-lg">Templates</h3>
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-5 gap-y-7">
+                        {tplHits.map((t) => {
+                          const e = toEntry(t);
+                          return <Tile key={e.id} entry={e} brand={brand} preset={presets[e.preset]} onPick={() => setPicked(e)} />;
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {q && <SizeHits query={q} onPick={(w, h) => (setCustom({ w, h, kind: "post" }), setPicked({ ...ENTRIES.find((e) => e.preset === "post")!, id: "custom", name: `Custom ${w} × ${h}`, note: "Custom size" }))} />}
                   {q && <AskTile query={query} brand={brand} onDone={onClose} />}
                 </>
@@ -279,11 +297,13 @@ function Details({ entry, brand, brands, setBrand, preset, custom, remotion, onB
     setBusy(true);
     setError(null);
     try {
-      const r = await api.post<{ brand: string; id: string }>("/api/projects", { brand: brand.slug, format: entry.preset, name: name || entry.name, engine: video ? engine : "hyperframes", ...(custom ? { width: w, height: h } : {}) });
+      const r = await api.post<{ brand: string; id: string }>("/api/projects", { brand: brand.slug, format: entry.preset, name: name || entry.name, engine: video ? engine : "hyperframes", ...(custom ? { width: w, height: h } : {}), ...(entry.template ? { template: entry.template, topic: about.trim() || undefined } : {}) });
       qc.invalidateQueries();
       if (about.trim())
         await run("/api/claude", {
-          prompt: `Write the ${entry.name.toLowerCase()} in projects/${r.brand}/${r.id}: fill brief.md, then write content.json with the scriptwriter agent (3 hook options in the brief first). Topic: ${about.trim()}. ${video ? "Don't record the voiceover or render yet." : "Then render it."}`,
+          prompt: entry.template
+            ? `projects/${r.brand}/${r.id} was created from the "${entry.name}" template. Keep its scene structure, but rewrite every scene's on-screen text${video ? " and voiceover line" : ""} for this topic in the brand's voice, using the scriptwriter agent: ${about.trim()}. Fill brief.md. ${video ? "Don't record the voiceover or render yet." : "Then render it."}`
+            : `Write the ${entry.name.toLowerCase()} in projects/${r.brand}/${r.id}: fill brief.md, then write content.json with the scriptwriter agent (3 hook options in the brief first). Topic: ${about.trim()}. ${video ? "Don't record the voiceover or render yet." : "Then render it."}`,
           title: `Write · ${name || entry.name}`,
           meta: { brand: r.brand, project: r.id },
         });
@@ -468,5 +488,113 @@ function IdeaStart({ brand, onDone }: { brand: BrandSummary; onDone: () => void 
         Hand it to Claude
       </Button>
     </form>
+  );
+}
+
+// ---------------------------------------------------------------- templates (studio-templates registry)
+export type Template = {
+  kind: "studio" | "external";
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  tags?: string[];
+  format?: string;
+  scenes?: Scene[];
+  engine?: string;
+  url?: string;
+};
+const LOOK: Record<string, Entry["look"]> = { reel: "phone", promo: "phone", landscape: "screen", carousel: "stack", post: "flat", square: "flat", story: "story" };
+const FORMAT_NAME: Record<string, string> = { reel: "Reels", promo: "Promos", landscape: "Video", carousel: "Carousels", post: "Posts", square: "Square", story: "Stories" };
+
+/** Placeholders shown in previews; the real values are filled from brand.json when the project is created */
+const preview = (s: Scene, b: BrandSummary): Scene => {
+  const v: Record<string, string> = { brand: b.name, product: b.name, cta: b.ctas?.[0] || "Follow for more", topic: "your topic", audience: "you", handle: `@${b.slug}` };
+  const f = (x: unknown): unknown => (typeof x === "string" ? x.replace(/\{\{(\w+)\}\}/g, (m, k) => v[k] ?? m) : Array.isArray(x) ? x.map(f) : x);
+  return Object.fromEntries(Object.entries(s).map(([k, x]) => [k, f(x)])) as Scene;
+};
+
+function toEntry(t: Template): Entry {
+  const first = t.scenes?.[0] || { type: "hook", text: t.name };
+  return { id: `tpl-${t.id}`, preset: t.format || "reel", name: t.name, note: t.description, cats: [], keywords: "", look: LOOK[t.format || "reel"] || "phone", sample: (b) => preview(first as Scene, b), template: t.id };
+}
+
+function TemplatesView({ templates, error, brand, presets, onPick, onDone }: { templates: Template[]; error: string | null; brand: BrandSummary; presets: Record<string, Meta["formats"][number]>; onPick: (e: Entry) => void; onDone: () => void }) {
+  const [format, setFormat] = useState("");
+  const [category, setCategory] = useState("");
+  const nav = useNavigate();
+  const order = Object.keys(FORMAT_NAME);
+  const studio = templates.filter((t) => t.kind === "studio").sort((x, y) => order.indexOf(x.format!) - order.indexOf(y.format!));
+  const external = templates.filter((t) => t.kind === "external");
+  const formats = order.filter((f) => studio.some((t) => t.format === f));
+  const categories = [...new Set(studio.filter((t) => !format || t.format === format).map((t) => t.category))].sort();
+  const list = studio.filter((t) => (!format || t.format === format) && (!category || t.category === category));
+  if (!templates.length)
+    return (
+      <div className="max-w-[560px]">
+        <h3 className="text-lg">No templates synced yet</h3>
+        <p className="mt-1 text-body text-ink-2">{error || "Templates come from the studio-templates repo. Open Apps → Sources and press Refresh."}</p>
+      </div>
+    );
+  const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-caption whitespace-nowrap transition-colors duration-150", on ? "border-ink bg-raised font-medium" : "border-line-soft text-ink-2 hover:border-ink-3/50 hover:text-ink");
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-lg">Templates for {brand.name}</h3>
+        <span className="text-caption text-ink-3 tabular-nums">{list.length} of {studio.length} · from studio-templates</span>
+      </div>
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        <button className={chip(!format)} onClick={() => (setFormat(""), setCategory(""))}>All</button>
+        {formats.map((f) => (
+          <button key={f} className={chip(format === f)} onClick={() => (setFormat(f), setCategory(""))}>
+            {FORMAT_NAME[f] || f}
+          </button>
+        ))}
+      </div>
+      <div className="mb-6 flex flex-wrap gap-1.5">
+        {categories.map((c) => (
+          <button key={c} className={cx(chip(category === c), "h-7 capitalize")} onClick={() => setCategory(category === c ? "" : c)}>
+            {c.replace(/-/g, " ")}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-5 gap-y-7">
+        {list.map((t) => {
+          const e = toEntry(t);
+          return <Tile key={e.id} entry={e} brand={brand} preset={presets[e.preset]} onPick={() => onPick(e)} />;
+        })}
+      </div>
+      {!format && !category && external.length > 0 && (
+        <div className="mt-10">
+          <h3 className="mb-1 text-lg">Starters from other engines</h3>
+          <p className="mb-4 text-caption text-ink-3">Official Remotion templates and HyperFrames examples. Open one, or ask Claude to set it up for this brand</p>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+            {external.map((t) => (
+              <div key={t.id} className="flex flex-col gap-2 rounded-xl border border-line-soft bg-surface p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-body font-medium">{t.name}</span>
+                  <span className="text-meta text-ink-3 capitalize">{t.engine}</span>
+                </div>
+                <p className="line-clamp-2 text-caption text-ink-2">{t.description}</p>
+                <div className="mt-auto flex gap-2 pt-1">
+                  <a href={t.url} target="_blank" rel="noreferrer">
+                    <Button size="sm" variant="ghost" icon={<ExternalLink className="size-3.5" />}>Open</Button>
+                  </a>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      onDone();
+                      nav("/claude", { state: { prompt: `Set up the ${t.name} starter (${t.url}) for brand ${brand.slug}. ${t.engine === "remotion" ? "Add it as a new composition in engines/remotion driven by the brand's props, keeping the shared engine working." : "Create a new HyperFrames project from it and apply the brand's colours and fonts."} Tell me how to use it when you're done.` } });
+                    }}
+                  >
+                    Ask Claude to set it up
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

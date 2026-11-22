@@ -12,6 +12,7 @@ import { startJob, cancelJob, getJob, listJobs, subscribe, summary, waitFor } fr
 import { runClaude, getSettings, saveSettings, DEFAULT_CLAUDE } from "./claude.mjs";
 import { registerLibrary } from "./library.mjs";
 import { registerApps } from "./apps.mjs";
+import { registerRegistry, cached as registryCache } from "./registry.mjs";
 
 const PORT = Number(process.env.PORT || 4317);
 const DEV = process.argv.includes("--dev");
@@ -310,14 +311,24 @@ app.get("/api/voices", async (c) => {
 app.get("/api/projects", (c) => c.json(listProjects(c.req.query("brand") || undefined)));
 
 app.post("/api/projects", async (c) => {
-  const { brand, format, name, engine, width, height } = await c.req.json();
+  const { brand, format, name, engine, width, height, template, topic } = await c.req.json();
   need(slugOk(brand), "Choose a brand");
   need(name?.trim(), "Give the project a name");
   need(/^[a-z]+$/.test(format || "reel"), "Unknown format");
   const size = width && height ? ["--width", String(Number(width)), "--height", String(Number(height))] : [];
+  // A template from the studio-templates registry: hand its JSON to new-project.mjs
+  const extra = [];
+  if (template) {
+    const t = (registryCache("templates")?.data?.templates || []).find((x) => x.id === template && x.kind === "studio");
+    need(t, "That template isn't in the synced registry. Refresh sources on the Apps page");
+    const file = path.join(APP, ".data", `template-${t.id}.json`);
+    fs.writeFileSync(file, JSON.stringify(t));
+    extra.push("--template", file);
+  }
+  if (topic?.trim()) extra.push("--topic", topic.trim().slice(0, 120));
   let out;
   try {
-    out = execFileSync(node, [script("new-project.mjs"), "--brand", brand, "--format", format || "reel", "--name", name.trim(), "--engine", engine || "hyperframes", ...size], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] }).toString();
+    out = execFileSync(node, [script("new-project.mjs"), "--brand", brand, "--format", format || "reel", "--name", name.trim(), "--engine", engine || "hyperframes", ...size, ...extra], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] }).toString();
   } catch (e) {
     throw bad(String(e.stderr || e.message).replace(/\x1b\[[0-9;]*m/g, "").replace(/^✖\s*/, "").trim().split("\n")[0]);
   }
@@ -636,6 +647,7 @@ app.get("/files/*", (c) => {
 
 // ---------------------------------------------------------------- library (voices, renders, imported media)
 registerLibrary(app, { need, bad });
+registerRegistry(app, { need, bad });
 registerApps(app, { need, bad });
 
 // ---------------------------------------------------------------- UI

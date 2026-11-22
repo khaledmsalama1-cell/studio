@@ -30,13 +30,19 @@ type App = {
   folderPath: string | null;
   skills?: string[];
   custom?: boolean;
-  kind?: "skills" | "mcp";
+  kind?: string; // custom: skills | mcp; registry: open-source | service | desktop | skill | mcp | cli
+  pricing?: string;
+  license?: string;
+  registry?: boolean;
+  linkOnly?: boolean;
   source?: string;
   url?: string;
 };
 type AppsResp = { categories: [string, string][]; apps: App[]; custom: App[] };
 
-const KIND: Record<string, string> = { video: "Engine", voice: "Voice", generate: "Generation", research: "Data", publish: "Publishing", skills: "Skills", design: "Design", utility: "Utility" };
+// Category names come from the registry (or the local catalogue); kept here for components outside Apps()
+let CATEGORY: Record<string, string> = {};
+const catName = (id: string) => CATEGORY[id] || id.replace(/-/g, " ");
 
 /** App mark: a solid tile in the app's colour with its initials */
 function Mark({ app, size = 44 }: { app: Pick<App, "name" | "color">; size?: number }) {
@@ -48,7 +54,7 @@ function Mark({ app, size = 44 }: { app: Pick<App, "name" | "color">; size?: num
   );
 }
 
-const state = (a: App) => (a.builtin ? "Built in" : a.installed ? (a.connector ? "Connected" : "Installed") : a.connector ? "Connect in Claude" : a.install || a.keys || a.mcp || a.folder ? "Add" : "Open");
+const state = (a: App) => (a.builtin ? "Built in" : a.installed ? (a.connector ? "Connected" : a.folder ? "Connected" : "Installed") : a.connector ? "Connect in Claude" : a.install || a.keys || a.mcp || a.folder ? "Add" : "Info");
 
 export default function Apps() {
   const { data } = useQuery({ queryKey: ["apps"], queryFn: () => api.get<AppsResp>("/api/apps") });
@@ -66,6 +72,7 @@ export default function Apps() {
   }, [running, qc]);
 
   const all = useMemo(() => [...(data?.apps || []), ...(data?.custom || [])], [data]);
+  CATEGORY = Object.fromEntries(data?.categories || []);
   const featured = all.find((a) => a.featured && !a.installed) || all.find((a) => a.featured);
   const t = q.trim().toLowerCase();
   const filtered = t ? all.filter((a) => `${a.name} ${a.tagline} ${a.description} ${a.category}`.toLowerCase().includes(t)) : cat === "for-you" ? null : cat === "installed" ? all.filter((a) => a.installed || a.builtin) : all.filter((a) => a.category === cat);
@@ -97,6 +104,8 @@ export default function Apps() {
           Add from a link
         </Button>
       </div>
+
+      <Sources />
 
       {filtered ? (
         <section>
@@ -146,7 +155,7 @@ function Hero({ app, onOpen }: { app: App; onOpen: () => void }) {
   return (
     <section className="mb-8 grid overflow-hidden rounded-[20px] border border-line-soft bg-surface md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
       <div className="flex flex-col justify-center gap-4 p-7 md:p-10">
-        <span className="text-caption text-ink-3">Featured {KIND[app.category]?.toLowerCase() || "app"}</span>
+        <span className="text-caption text-ink-3">Featured {catName(app.category).toLowerCase()}</span>
         <h1 className="text-[34px] leading-[1.05] tracking-[-0.03em] md:text-[44px]">{app.tagline || app.name}</h1>
         <p className="max-w-[56ch] text-body text-ink-2">{app.description}</p>
         <div className="flex flex-wrap gap-2 pt-1">
@@ -206,7 +215,7 @@ function PicksRow({ apps, onOpen }: { apps: App[]; onOpen: (a: App) => void }) {
                 <Mark app={a} size={40} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body font-medium">{a.name}</span>
-                  <span className="block truncate text-meta text-ink-3">{KIND[a.category]}</span>
+                  <span className="block truncate text-meta text-ink-3">{catName(a.category)}</span>
                 </span>
                 <StatusPill app={a} />
               </div>
@@ -290,7 +299,9 @@ function AppDialog({ app, all, onClose }: { app: App | null; all: App[]; onClose
             <Mark app={app} size={56} />
             <div>
               <p className="text-lg leading-snug">{app.tagline}</p>
-              <p className="text-caption text-ink-3">{KIND[app.category] || "App"}{app.custom ? " · added from a link" : ""}</p>
+              <p className="text-caption text-ink-3">
+                {[catName(app.category), app.custom ? "added from a link" : app.kind, app.pricing, app.license].filter(Boolean).join(" · ")}
+              </p>
             </div>
           </div>
           <p className="text-body text-ink-2">{app.description}</p>
@@ -342,7 +353,11 @@ function AppDialog({ app, all, onClose }: { app: App | null; all: App[]; onClose
           <ErrorNote error={err || runErr} />
 
           <div className="flex flex-wrap gap-2 border-t border-line-soft pt-5">
-            {app.builtin ? (
+            {app.linkOnly ? (
+              <a href={Object.values(app.links || {})[0]} target="_blank" rel="noreferrer">
+                <Button variant="primary" icon={<ExternalLink className="size-4" />}>Open {Object.keys(app.links || {})[0] || "website"}</Button>
+              </a>
+            ) : app.builtin ? (
               <span className="flex items-center gap-2 text-body text-ok">
                 <Check className="size-4" /> Built into the studio
               </span>
@@ -383,6 +398,7 @@ function AppDialog({ app, all, onClose }: { app: App | null; all: App[]; onClose
             <p className="mb-2 text-caption font-medium text-ink-2">Status</p>
             <StatusPill app={app} />
             {app.mcp && <p className="mt-3 text-caption text-ink-3">MCP connector: {app.mcpAdded ? "added to .mcp.json" : "not added"}</p>}
+            {app.registry && <p className="mt-2 text-caption text-ink-3">Listed in the studio-apps registry</p>}
             {app.folderPath && <p className="mt-2 truncate font-mono text-meta text-ink-3" title={app.folderPath}>{app.folderPath}</p>}
           </div>
           {(app.links || app.url) && (
@@ -494,3 +510,51 @@ function AddLinkDialog({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
+
+// ---------------------------------------------------------------- registry sources
+type Source = { repo: string; url: string; fetchedAt: string | null; count: number; error: string | null; syncing: boolean };
+function Sources() {
+  const qc = useQueryClient();
+  const { data } = useQuery({ queryKey: ["registry"], queryFn: () => api.get<{ apps: Source; templates: Source }>("/api/registry"), refetchInterval: (q) => (q.state.data && (q.state.data.apps.syncing || q.state.data.templates.syncing) ? 1500 : false) });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<unknown>(null);
+  if (!data) return null;
+  const row = (label: string, s: Source) => (
+    <a href={s.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 text-caption hover:text-ink">
+      <span className={cx("size-2 flex-none rounded-full", s.error ? "bg-danger" : s.count ? "bg-ok" : "bg-line")} />
+      <span className="font-medium text-ink">{label}</span>
+      <span className="truncate font-mono text-meta text-ink-3">{s.repo}</span>
+      <span className="text-ink-2 tabular-nums">{s.error ? "can't reach" : `${s.count}`}</span>
+    </a>
+  );
+  const synced = [data.apps.fetchedAt, data.templates.fetchedAt].filter(Boolean).sort()[0];
+  return (
+    <div className="mb-8 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-line-soft bg-surface px-4 py-3">
+      <span className="text-caption font-medium text-ink-2">Sources</span>
+      {row("Apps", data.apps)}
+      {row("Templates", data.templates)}
+      <span className="ml-auto text-meta text-ink-3">{data.apps.syncing || data.templates.syncing ? "Syncing…" : synced ? `Synced ${new Date(synced).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : "Not synced"}</span>
+      <Button
+        size="sm"
+        busy={busy}
+        onClick={async () => {
+          setBusy(true);
+          setErr(null);
+          try {
+            await api.post("/api/registry/refresh");
+            qc.invalidateQueries({ queryKey: ["registry"] });
+            qc.invalidateQueries({ queryKey: ["apps"] });
+            qc.invalidateQueries({ queryKey: ["templates"] });
+          } catch (e) {
+            setErr(e);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        Refresh
+      </Button>
+      {!!(data.apps.error || data.templates.error || err) && <p className="w-full text-caption text-danger">{String(data.apps.error || data.templates.error || (err as Error)?.message)}</p>}
+    </div>
+  );
+}

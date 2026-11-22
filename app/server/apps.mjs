@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import { ROOT, DATA, readJSON } from "./paths.mjs";
 import { startJob, waitFor } from "./jobs.mjs";
 import { saveSettings } from "./claude.mjs";
+import { cached } from "./registry.mjs";
 
 const CATALOG = path.join(ROOT, "apps/catalog.json");
 const STATE = path.join(DATA, "apps.json");
@@ -16,7 +17,34 @@ const ENV = path.join(ROOT, ".env");
 const SKILLS = path.join(ROOT, ".claude/skills");
 const node = process.execPath;
 
-const catalog = () => readJSON(CATALOG, { categories: [], apps: [] });
+const localCatalog = () => readJSON(CATALOG, { categories: [], apps: [] });
+
+/**
+ * A registry entry becomes an app the page understands. Only integrations that need no code are honoured:
+ * mcp → connector, skills-repo → copied skills, keys → .env, folder → Library, link → info. Never commands.
+ */
+function fromRegistry(r) {
+  const i = r.integration || { type: "link" };
+  const base = { id: r.id, name: r.name, category: r.category, color: r.color || "#52525B", tagline: r.tagline, description: r.description, links: r.links, kind: r.kind, pricing: r.pricing, license: r.license, tags: r.tags, registry: true };
+  if (i.type === "mcp" && i.name && i.config && (i.config.url ? /^https:\/\//.test(i.config.url) : ["npx", "uvx"].includes(i.config.command)))
+    return { ...base, mcp: { name: i.name, config: i.config, oauth: !!i.oauth }, keys: i.keys?.length ? i.keys : undefined, check: { mcp: i.name } };
+  if (i.type === "skills-repo" && /^[\w.-]+\/[\w.-]+$/.test(i.repo || "")) return { ...base, install: { type: "skills-repo", repo: i.repo }, check: { marker: i.repo } };
+  if (i.type === "keys" && Array.isArray(i.keys) && i.keys.every((k) => /^[A-Z0-9_]+$/.test(k))) return { ...base, keys: i.keys, check: { env: i.keys[0] } };
+  if (i.type === "folder") return { ...base, folder: true, check: { folder: r.id } };
+  return { ...base, linkOnly: true };
+}
+
+/** Local catalogue first (it may define commands); registry adds everything else and fills gaps in local entries. */
+const catalog = () => {
+  const local = localCatalog();
+  const reg = cached("apps")?.data;
+  if (!reg?.apps) return local;
+  const remote = new Map(reg.apps.map((r) => [r.id, fromRegistry(r)]));
+  const apps = local.apps.map((a) => (remote.has(a.id) ? { ...remote.get(a.id), ...a, registry: true, linkOnly: false } : a));
+  for (const [id, r] of remote) if (!local.apps.some((a) => a.id === id)) apps.push(r);
+  const categories = reg.categories?.length ? reg.categories : local.categories;
+  return { categories, apps };
+};
 const state = () => ({ installed: {}, custom: [], folders: {}, ...readJSON(STATE, {}) });
 const saveState = (s) => (fs.mkdirSync(DATA, { recursive: true }), fs.writeFileSync(STATE, JSON.stringify(s, null, 2)));
 

@@ -15,8 +15,7 @@ npx hyperframes skills    # optional but recommended: official HyperFrames skill
 
 ## ElevenLabs
 1. Create an API key at elevenlabs.io → Profile → API keys. Put it in `.env` as `ELEVENLABS_API_KEY`.
-2. MCP server (lets Claude search/design/clone voices, make music and SFX): copy `.mcp.json.example` to `.mcp.json` (it reads the key from your environment), or add it globally:
-   `claude mcp add elevenlabs -e ELEVENLABS_API_KEY=... -- uvx elevenlabs-mcp`
+2. MCP server (lets Claude search/design/clone voices, make music and SFX): ElevenLabs now runs a hosted server at `https://api.elevenlabs.io/v1/mcp` (their old local `elevenlabs-mcp` package is deprecated). Add it from the studio's **Apps** page, or copy `.mcp.json.example` to `.mcp.json`, then run `claude` here and type `/mcp` once to sign in.
 3. Voiceovers with word timings use the REST API directly (`scripts/voiceover.mjs`), so they work with or without the MCP.
 
 ## Other voice tools ("voice studio")

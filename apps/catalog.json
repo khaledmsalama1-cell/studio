@@ -1,212 +1,578 @@
 {
   "$comment": "Apps you can add to the studio from the Apps page. Edit freely: each entry says how to install it, how to tell it's installed, and how Claude uses it.",
   "categories": [
-    ["video", "Video engines"],
-    ["voice", "Voice & audio"],
-    ["generate", "AI image & video"],
-    ["research", "Research & data"],
-    ["publish", "Publishing"],
-    ["skills", "Claude skills"],
-    ["design", "Design"],
-    ["utility", "Utilities"]
+    [
+      "video-engines",
+      "Video engines"
+    ],
+    [
+      "editors",
+      "Video editors"
+    ],
+    [
+      "motion",
+      "Motion & animation"
+    ],
+    [
+      "voice",
+      "Voice & TTS"
+    ],
+    [
+      "voice-clone",
+      "Voice cloning & conversion"
+    ],
+    [
+      "transcription",
+      "Transcription"
+    ],
+    [
+      "music",
+      "Music & sound"
+    ],
+    [
+      "audio-tools",
+      "Audio cleanup"
+    ],
+    [
+      "image-gen",
+      "Image generation"
+    ],
+    [
+      "video-gen",
+      "Video generation"
+    ],
+    [
+      "avatars",
+      "Avatars & lip-sync"
+    ],
+    [
+      "image-tools",
+      "Upscaling & cutouts"
+    ],
+    [
+      "design",
+      "Design"
+    ],
+    [
+      "stock",
+      "Stock media & fonts"
+    ],
+    [
+      "research",
+      "Research & scraping"
+    ],
+    [
+      "social-apis",
+      "Social platform APIs"
+    ],
+    [
+      "publishing",
+      "Publishing & scheduling"
+    ],
+    [
+      "analytics",
+      "Analytics"
+    ],
+    [
+      "automation",
+      "Automation"
+    ],
+    [
+      "storage",
+      "Storage & workspace"
+    ],
+    [
+      "skills",
+      "Claude skills"
+    ],
+    [
+      "mcp",
+      "MCP connectors"
+    ],
+    [
+      "local-ai",
+      "Local AI"
+    ]
   ],
   "apps": [
     {
-      "id": "hyperframes", "name": "HyperFrames", "category": "video", "color": "#2747E8", "builtin": true,
+      "id": "hyperframes",
+      "name": "HyperFrames",
+      "category": "video-engines",
+      "color": "#2747E8",
+      "builtin": true,
       "tagline": "Write HTML, render MP4",
       "description": "The studio's default video engine. Every reel, promo and carousel is an HTML composition rendered to video or PNG, with checks for safe areas and contrast.",
       "use": "Used automatically by npm run build / render.",
-      "links": { "Website": "https://hyperframes.heygen.com", "GitHub": "https://github.com/heygen-com/hyperframes" },
-      "check": { "bin": "npx" }
+      "links": {
+        "Website": "https://hyperframes.heygen.com",
+        "GitHub": "https://github.com/heygen-com/hyperframes"
+      },
+      "check": {
+        "bin": "npx"
+      }
     },
     {
-      "id": "hyperframes-skills", "name": "HyperFrames skills", "category": "skills", "color": "#2747E8", "featured": true,
+      "id": "hyperframes-skills",
+      "name": "HyperFrames skills",
+      "category": "skills",
+      "color": "#2747E8",
+      "featured": true,
       "tagline": "Teach Claude bespoke motion design",
       "description": "Official agent skills from HyperFrames: composition rules, motion, captions, media treatments and the registry of ready-made blocks. Claude uses them when you ask for custom animation beyond the templates.",
       "use": "Claude loads /hyperframes before hand-authoring a composition.",
-      "links": { "Docs": "https://hyperframes.heygen.com" },
-      "install": { "type": "command", "cmd": "npx", "args": ["--yes", "hyperframes@0.9.81", "skills", "update"] },
-      "check": { "skill": "hyperframes" }
+      "links": {
+        "Docs": "https://hyperframes.heygen.com"
+      },
+      "install": {
+        "type": "command",
+        "cmd": "npx",
+        "args": [
+          "--yes",
+          "hyperframes@0.9.81",
+          "skills",
+          "update"
+        ]
+      },
+      "check": {
+        "skill": "hyperframes"
+      }
     },
     {
-      "id": "remotion", "name": "Remotion", "category": "video", "color": "#0B84F3",
+      "id": "remotion",
+      "name": "Remotion",
+      "category": "video-engines",
+      "color": "#0B84F3",
       "tagline": "Videos as React components",
       "description": "A second video engine for data-driven or React-based videos. Projects can choose it in the Create picker. Free for individuals and small teams; larger companies need a license.",
       "use": "Pick Remotion as the engine when creating a video project.",
-      "links": { "Website": "https://www.remotion.dev", "License": "https://www.remotion.dev/license" },
-      "install": { "type": "npm", "script": "setup:remotion" },
-      "check": { "path": "engines/remotion/node_modules" }
+      "links": {
+        "Website": "https://www.remotion.dev",
+        "License": "https://www.remotion.dev/license"
+      },
+      "install": {
+        "type": "npm",
+        "script": "setup:remotion"
+      },
+      "check": {
+        "path": "engines/remotion/node_modules"
+      }
     },
     {
-      "id": "remotion-skills", "name": "Remotion skills", "category": "skills", "color": "#0B84F3", "featured": true,
+      "id": "remotion-skills",
+      "name": "Remotion skills",
+      "category": "skills",
+      "color": "#0B84F3",
+      "featured": true,
       "tagline": "Best practices for Remotion, built in",
       "description": "Remotion's official agent skills (remotion-dev/skills): best practices, creating, rendering and upgrading Remotion projects. Installed into this project's .claude/skills.",
       "use": "Claude uses them whenever it edits engines/remotion.",
-      "links": { "Docs": "https://www.remotion.dev/docs/ai/skills", "GitHub": "https://github.com/remotion-dev/skills" },
-      "install": { "type": "skills-repo", "repo": "remotion-dev/skills" },
-      "check": { "marker": "remotion-dev/skills" }
+      "links": {
+        "Docs": "https://www.remotion.dev/docs/ai/skills",
+        "GitHub": "https://github.com/remotion-dev/skills"
+      },
+      "install": {
+        "type": "skills-repo",
+        "repo": "remotion-dev/skills"
+      },
+      "check": {
+        "marker": "remotion-dev/skills"
+      }
     },
     {
-      "id": "ffmpeg", "name": "FFmpeg", "category": "video", "color": "#2C8C3C", "builtin": true,
+      "id": "ffmpeg",
+      "name": "FFmpeg",
+      "category": "video-engines",
+      "color": "#2C8C3C",
+      "builtin": true,
       "tagline": "The video toolbox underneath everything",
       "description": "Converts audio, cuts clips, makes 1:1 / 4:5 / 16:9 variants and thumbnails. Required by the studio.",
       "use": "Used by voiceover, render and variants scripts.",
-      "links": { "Website": "https://ffmpeg.org" },
-      "check": { "bin": "ffmpeg" }
+      "links": {
+        "Website": "https://ffmpeg.org"
+      },
+      "check": {
+        "bin": "ffmpeg"
+      }
     },
     {
-      "id": "elevenlabs", "name": "ElevenLabs", "category": "voice", "color": "#111111", "featured": true,
+      "id": "elevenlabs",
+      "name": "ElevenLabs",
+      "category": "voice",
+      "color": "#111111",
+      "featured": true,
       "tagline": "The voices people can't tell from real",
-      "description": "Voiceovers with word timings, voice design and cloning, music and sound effects. The API key powers npm run voice and the Library; the MCP connector lets Claude cast and design voices.",
+      "description": "Voiceovers with word timings, voice design and cloning, music and sound effects. The API key powers npm run voice and the Library; the hosted MCP connector (sign in once with /mcp) lets Claude cast and design voices.",
       "use": "Narrator voices in brand.json; Claude uses the voice skill to cast or design voices.",
-      "links": { "Website": "https://elevenlabs.io", "API keys": "https://elevenlabs.io/app/settings/api-keys" },
-      "keys": ["ELEVENLABS_API_KEY"],
-      "mcp": { "name": "elevenlabs", "config": { "command": "uvx", "args": ["elevenlabs-mcp"], "env": { "ELEVENLABS_API_KEY": "${ELEVENLABS_API_KEY}" } } },
-      "check": { "env": "ELEVENLABS_API_KEY" }
+      "links": {
+        "Website": "https://elevenlabs.io",
+        "API keys": "https://elevenlabs.io/app/settings/api-keys",
+        "MCP docs": "https://elevenlabs.io/docs/agents-platform/operate/hosted-mcp"
+      },
+      "keys": [
+        "ELEVENLABS_API_KEY"
+      ],
+      "mcp": {
+        "name": "elevenlabs",
+        "config": {
+          "type": "http",
+          "url": "https://api.elevenlabs.io/v1/mcp"
+        },
+        "oauth": true
+      },
+      "check": {
+        "env": "ELEVENLABS_API_KEY"
+      }
     },
     {
-      "id": "kokoro", "name": "Kokoro", "category": "voice", "color": "#E86A33",
+      "id": "kokoro",
+      "name": "Kokoro",
+      "category": "voice",
+      "color": "#E86A33",
       "tagline": "Free voices that run on your computer",
       "description": "An 82M-parameter text-to-speech model that runs locally through HyperFrames. Nine English voices, no account, no cost.",
       "use": "Choose Kokoro as a brand's voice engine, or pick it when recording.",
-      "links": { "Model": "https://huggingface.co/hexgrad/Kokoro-82M" },
-      "install": { "type": "npm", "script": "setup:voice" },
-      "check": { "path": ".venv-voice/bin/python" }
+      "links": {
+        "Model": "https://huggingface.co/hexgrad/Kokoro-82M"
+      },
+      "install": {
+        "type": "npm",
+        "script": "setup:voice"
+      },
+      "check": {
+        "path": ".venv-voice/bin/python"
+      }
     },
     {
-      "id": "voicebox", "name": "Voicebox", "category": "voice", "color": "#5B4BDB", "featured": true,
+      "id": "voicebox",
+      "name": "Voicebox",
+      "category": "voice",
+      "color": "#5B4BDB",
+      "featured": true,
       "tagline": "An open-source voice studio",
       "description": "A local desktop app for voice cloning from a few seconds of audio, multiple TTS engines (Qwen3-TTS, Kokoro, Chatterbox and more) and 23 languages. Connect its export folder and every take shows up in the Library, ready to use as a voiceover.",
       "use": "Export takes from Voicebox; use them as 'your own recording' in a project.",
-      "links": { "GitHub": "https://github.com/jamiepine/voicebox" },
+      "links": {
+        "GitHub": "https://github.com/jamiepine/voicebox"
+      },
       "folder": true,
-      "check": { "folder": "voicebox" }
+      "check": {
+        "folder": "voicebox"
+      }
     },
     {
-      "id": "chatterbox", "name": "Chatterbox", "category": "voice", "color": "#C2410C",
+      "id": "chatterbox",
+      "name": "Chatterbox",
+      "category": "voice",
+      "color": "#C2410C",
       "tagline": "Open-source expressive TTS and cloning",
       "description": "Resemble AI's MIT-licensed TTS family (Turbo, Multilingual). Installs into the studio's local voice environment. Large download and a GPU is recommended.",
       "use": "Ask Claude to read a script with Chatterbox; the WAV it makes is used as your own recording.",
-      "links": { "GitHub": "https://github.com/resemble-ai/chatterbox" },
-      "needs": ["kokoro"],
-      "install": { "type": "command", "cmd": "uv", "args": ["pip", "install", "--python", ".venv-voice/bin/python", "chatterbox-tts"] },
-      "check": { "glob": ".venv-voice/lib/*/site-packages/chatterbox" }
+      "links": {
+        "GitHub": "https://github.com/resemble-ai/chatterbox"
+      },
+      "needs": [
+        "kokoro"
+      ],
+      "install": {
+        "type": "command",
+        "cmd": "uv",
+        "args": [
+          "pip",
+          "install",
+          "--python",
+          ".venv-voice/bin/python",
+          "chatterbox-tts"
+        ]
+      },
+      "check": {
+        "glob": ".venv-voice/lib/*/site-packages/chatterbox"
+      }
     },
     {
-      "id": "parakeet", "name": "Parakeet", "category": "voice", "color": "#2F855A",
+      "id": "parakeet",
+      "name": "Parakeet",
+      "category": "transcription",
+      "color": "#2F855A",
       "tagline": "Faster local transcription",
       "description": "NVIDIA's speech model for word-level caption timings. HyperFrames uses it instead of Whisper when installed.",
       "use": "Used automatically when timing captions for your own recordings.",
-      "links": { "Docs": "https://hyperframes.heygen.com" },
-      "install": { "type": "command", "cmd": "npx", "args": ["--yes", "hyperframes@0.9.81", "models", "install", "parakeet"] }
+      "links": {
+        "Docs": "https://hyperframes.heygen.com"
+      },
+      "install": {
+        "type": "command",
+        "cmd": "npx",
+        "args": [
+          "--yes",
+          "hyperframes@0.9.81",
+          "models",
+          "install",
+          "parakeet"
+        ]
+      }
     },
     {
-      "id": "fal", "name": "fal", "category": "generate", "color": "#7A3CE0", "featured": true,
+      "id": "fal",
+      "name": "fal",
+      "category": "video-gen",
+      "color": "#7A3CE0",
+      "featured": true,
       "tagline": "1,000+ image, video and audio models",
       "description": "Generate product shots, b-roll, video clips and music with models like Flux, Veo, Kling and more. Claude can search models, run them and drop results into a project's media.",
       "use": "Ask Claude: 'make b-roll of coffee pouring with fal and add it to scene 3'.",
-      "links": { "Website": "https://fal.ai", "MCP docs": "https://fal.ai/docs/documentation/setting-up/mcp" },
-      "keys": ["FAL_KEY"],
-      "mcp": { "name": "fal", "config": { "type": "http", "url": "https://mcp.fal.ai/mcp", "headers": { "Authorization": "Bearer ${FAL_KEY}" } } },
-      "check": { "mcp": "fal" }
+      "links": {
+        "Website": "https://fal.ai",
+        "MCP docs": "https://fal.ai/docs/documentation/setting-up/mcp"
+      },
+      "keys": [
+        "FAL_KEY"
+      ],
+      "mcp": {
+        "name": "fal",
+        "config": {
+          "type": "http",
+          "url": "https://mcp.fal.ai/mcp",
+          "headers": {
+            "Authorization": "Bearer ${FAL_KEY}"
+          }
+        }
+      },
+      "check": {
+        "mcp": "fal"
+      }
     },
     {
-      "id": "replicate", "name": "Replicate", "category": "generate", "color": "#E2513C",
+      "id": "replicate",
+      "name": "Replicate",
+      "category": "video-gen",
+      "color": "#E2513C",
       "tagline": "Run open models in the cloud",
       "description": "Thousands of open-source models for images, video, upscaling and background removal, through Replicate's official MCP server.",
       "use": "Ask Claude to generate or upscale assets with Replicate.",
-      "links": { "Website": "https://replicate.com", "MCP": "https://mcp.replicate.com" },
-      "keys": ["REPLICATE_API_TOKEN"],
-      "mcp": { "name": "replicate", "config": { "command": "npx", "args": ["-y", "replicate-mcp"], "env": { "REPLICATE_API_TOKEN": "${REPLICATE_API_TOKEN}" } } },
-      "check": { "mcp": "replicate" }
+      "links": {
+        "Website": "https://replicate.com",
+        "MCP": "https://mcp.replicate.com"
+      },
+      "keys": [
+        "REPLICATE_API_TOKEN"
+      ],
+      "mcp": {
+        "name": "replicate",
+        "config": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "replicate-mcp"
+          ],
+          "env": {
+            "REPLICATE_API_TOKEN": "${REPLICATE_API_TOKEN}"
+          }
+        }
+      },
+      "check": {
+        "mcp": "replicate"
+      }
     },
     {
-      "id": "heygen", "name": "HeyGen", "category": "generate", "color": "#1F6FEB",
+      "id": "heygen",
+      "name": "HeyGen",
+      "category": "avatars",
+      "color": "#1F6FEB",
       "tagline": "AI avatars that present for you",
       "description": "Generate avatar presenter videos with HeyGen's official MCP server, then use them as media scenes. Needs a HeyGen account; sign in once in Claude Code with /mcp.",
       "use": "Ask Claude for an avatar intro and drop it into a reel.",
-      "links": { "Docs": "https://developers.heygen.com/mcp/claude-code" },
-      "mcp": { "name": "heygen", "config": { "type": "http", "url": "https://mcp.heygen.com/mcp/v1/" }, "oauth": true },
-      "check": { "mcp": "heygen" }
+      "links": {
+        "Docs": "https://developers.heygen.com/mcp/claude-code"
+      },
+      "mcp": {
+        "name": "heygen",
+        "config": {
+          "type": "http",
+          "url": "https://mcp.heygen.com/mcp/v1/"
+        },
+        "oauth": true
+      },
+      "check": {
+        "mcp": "heygen"
+      }
     },
     {
-      "id": "yt-dlp", "name": "yt-dlp", "category": "research", "color": "#B91C1C",
+      "id": "yt-dlp",
+      "name": "yt-dlp",
+      "category": "research",
+      "color": "#B91C1C",
       "tagline": "Pull public posts from TikTok and YouTube",
       "description": "The free scraper behind the Research page for TikTok profiles, YouTube channels and single post links, and for downloading top videos to study their hooks.",
       "use": "Used by npm run social and social:hooks.",
-      "links": { "GitHub": "https://github.com/yt-dlp/yt-dlp" },
-      "install": { "type": "command", "cmd": "uv", "args": ["tool", "install", "yt-dlp"] },
-      "check": { "bin": "yt-dlp" }
+      "links": {
+        "GitHub": "https://github.com/yt-dlp/yt-dlp"
+      },
+      "install": {
+        "type": "command",
+        "cmd": "uv",
+        "args": [
+          "tool",
+          "install",
+          "yt-dlp"
+        ]
+      },
+      "check": {
+        "bin": "yt-dlp"
+      }
     },
     {
-      "id": "apify", "name": "Apify", "category": "research", "color": "#2BA84A", "featured": true,
+      "id": "apify",
+      "name": "Apify",
+      "category": "research",
+      "color": "#2BA84A",
+      "featured": true,
       "tagline": "Instagram, Facebook and 5,000+ scrapers",
       "description": "Paid-per-result scrapers that handle logins and blocking. Powers Instagram profiles and Facebook pages on the Research page; the MCP connector lets Claude run any Apify actor.",
       "use": "Research page picks Apify automatically for Instagram and Facebook.",
-      "links": { "Website": "https://apify.com", "MCP docs": "https://docs.apify.com/platform/integrations/mcp" },
-      "keys": ["APIFY_TOKEN"],
-      "mcp": { "name": "apify", "config": { "type": "http", "url": "https://mcp.apify.com", "headers": { "Authorization": "Bearer ${APIFY_TOKEN}" } } },
-      "check": { "env": "APIFY_TOKEN" }
+      "links": {
+        "Website": "https://apify.com",
+        "MCP docs": "https://docs.apify.com/platform/integrations/mcp"
+      },
+      "keys": [
+        "APIFY_TOKEN"
+      ],
+      "mcp": {
+        "name": "apify",
+        "config": {
+          "type": "http",
+          "url": "https://mcp.apify.com",
+          "headers": {
+            "Authorization": "Bearer ${APIFY_TOKEN}"
+          }
+        }
+      },
+      "check": {
+        "env": "APIFY_TOKEN"
+      }
     },
     {
-      "id": "meta-graph", "name": "Meta Graph API", "category": "research", "color": "#0866FF",
+      "id": "meta-graph",
+      "name": "Meta Graph API",
+      "category": "social-apis",
+      "color": "#0866FF",
       "tagline": "Official Instagram and Facebook data",
       "description": "Free, official stats for Instagram business and creator accounts (Business Discovery) and Facebook Pages you manage. Setup steps are in docs/social-research.md.",
       "use": "Research page uses it for Instagram when configured.",
-      "links": { "Setup guide": "https://developers.facebook.com/docs/instagram-platform" },
-      "keys": ["META_ACCESS_TOKEN", "META_IG_USER_ID"],
-      "check": { "env": "META_ACCESS_TOKEN" }
+      "links": {
+        "Setup guide": "https://developers.facebook.com/docs/instagram-platform"
+      },
+      "keys": [
+        "META_ACCESS_TOKEN",
+        "META_IG_USER_ID"
+      ],
+      "check": {
+        "env": "META_ACCESS_TOKEN"
+      }
     },
     {
-      "id": "postiz", "name": "Postiz", "category": "publish", "color": "#612AD5", "featured": true,
+      "id": "postiz",
+      "name": "Postiz",
+      "category": "publishing",
+      "color": "#612AD5",
+      "featured": true,
       "tagline": "Schedule posts to 20+ networks",
       "description": "Open-source social scheduler (cloud or self-hosted) with an official MCP server. Claude can schedule finished renders with the captions from caption.md.",
       "use": "Ask Claude: 'schedule this reel for Thursday 6pm on Instagram and TikTok'.",
-      "links": { "Website": "https://postiz.com", "MCP docs": "https://docs.postiz.com/mcp/introduction", "GitHub": "https://github.com/gitroomhq/postiz-app" },
-      "keys": ["POSTIZ_API_KEY"],
-      "mcp": { "name": "postiz", "config": { "type": "http", "url": "https://api.postiz.com/mcp", "headers": { "Authorization": "Bearer ${POSTIZ_API_KEY}" } } },
-      "check": { "mcp": "postiz" }
+      "links": {
+        "Website": "https://postiz.com",
+        "MCP docs": "https://docs.postiz.com/mcp/introduction",
+        "GitHub": "https://github.com/gitroomhq/postiz-app"
+      },
+      "keys": [
+        "POSTIZ_API_KEY"
+      ],
+      "mcp": {
+        "name": "postiz",
+        "config": {
+          "type": "http",
+          "url": "https://api.postiz.com/mcp",
+          "headers": {
+            "Authorization": "Bearer ${POSTIZ_API_KEY}"
+          }
+        }
+      },
+      "check": {
+        "mcp": "postiz"
+      }
     },
     {
-      "id": "anthropic-skills", "name": "Anthropic skills", "category": "skills", "color": "#D97757",
+      "id": "anthropic-skills",
+      "name": "Anthropic skills",
+      "category": "skills",
+      "color": "#D97757",
       "tagline": "Decks, docs, PDFs and spreadsheets",
       "description": "Anthropic's public skills (anthropics/skills): PowerPoint, Word, PDF and Excel files, plus design and writing skills. Useful for pitch decks and brand guideline PDFs.",
       "use": "Ask Claude for 'a brand guidelines PDF' or 'a pitch deck from this campaign'.",
-      "links": { "GitHub": "https://github.com/anthropics/skills" },
-      "install": { "type": "skills-repo", "repo": "anthropics/skills" },
-      "check": { "marker": "anthropics/skills" }
+      "links": {
+        "GitHub": "https://github.com/anthropics/skills"
+      },
+      "install": {
+        "type": "skills-repo",
+        "repo": "anthropics/skills"
+      },
+      "check": {
+        "marker": "anthropics/skills"
+      }
     },
     {
-      "id": "skills-directory", "name": "skills.sh", "category": "skills", "color": "#111111",
+      "id": "skills-directory",
+      "name": "skills.sh",
+      "category": "skills",
+      "color": "#111111",
       "tagline": "Thousands of community skills",
       "description": "Vercel's open directory of agent skills. Find a skill there, copy its GitHub repo (owner/repo) and add it here with Add from a link.",
       "use": "Browse, then add any repo with Add from a link.",
-      "links": { "Directory": "https://skills.sh" }
+      "links": {
+        "Directory": "https://skills.sh"
+      }
     },
     {
-      "id": "canva", "name": "Canva", "category": "design", "color": "#00A3BF",
+      "id": "canva",
+      "name": "Canva",
+      "category": "design",
+      "color": "#00A3BF",
       "tagline": "Editable designs and brand kits",
       "description": "Connect Canva in claude.ai (Settings → Connectors) and Claude can create, resize and export Canva designs from your brand.",
       "use": "Ask Claude to build the carousel in Canva so you can tweak it there.",
-      "links": { "Connectors": "https://claude.ai/settings/connectors" },
+      "links": {
+        "Connectors": "https://claude.ai/settings/connectors"
+      },
       "connector": true
     },
     {
-      "id": "figma", "name": "Figma", "category": "design", "color": "#A259FF",
+      "id": "figma",
+      "name": "Figma",
+      "category": "design",
+      "color": "#A259FF",
       "tagline": "Bring designs into videos",
       "description": "With the Figma plugin for Claude Code, Claude can read frames, logos and brand styles from Figma files and use them in compositions.",
       "use": "Paste a Figma link and ask Claude to use it in a reel.",
-      "links": { "Figma MCP": "https://help.figma.com/hc/en-us/articles/32132100833559" },
+      "links": {
+        "Figma MCP": "https://help.figma.com/hc/en-us/articles/32132100833559"
+      },
       "connector": true
     },
     {
-      "id": "pinokio", "name": "Pinokio", "category": "utility", "color": "#3F3F46",
+      "id": "pinokio",
+      "name": "Pinokio",
+      "category": "local-ai",
+      "color": "#3F3F46",
       "tagline": "One-click local AI apps",
       "description": "A launcher for local AI tools (TTS, image and video models) with one-click installs. Point its output folders at the Library to use results here.",
       "use": "Install local tools with Pinokio, then connect their output folder.",
-      "links": { "Website": "https://pinokio.co" },
+      "links": {
+        "Website": "https://pinokio.co"
+      },
       "folder": true,
-      "check": { "folder": "pinokio" }
+      "check": {
+        "folder": "pinokio"
+      }
     }
   ]
 }

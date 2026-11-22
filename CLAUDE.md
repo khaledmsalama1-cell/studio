@@ -58,9 +58,13 @@ Music: put a licensed track at `assets/music.mp3` and set `content.json → musi
 - Spending money (ElevenLabs credits, HeyGen/Canva generation) — say what you're about to generate before large batches.
 - Outputs in `projects/` are git-ignored; brands are committed.
 
-## Apps
+## Apps and templates
 
-Extra tools, skills and MCP connectors are added from the Apps page (catalogue: `apps/catalog.json`). What is installed right now is listed in `apps/INSTALLED.md`: read it when choosing how to do a task, and prefer those tools.
+Two registries extend the studio (synced on the Apps page → Sources → Refresh, cached in `app/.data/registry/`):
+- **studio-apps** (github.com/khaledmsalama1-cell/studio-apps): 160+ tools, services, skills and MCP connectors. Read `app/.data/registry/apps.json` when the user asks what tool to use for something.
+- **studio-templates** (github.com/khaledmsalama1-cell/studio-templates): 100+ content templates. Create from one with `npm run new -- --brand <slug> --template <file.json> --topic "..."` (or Create → Templates in the UI).
+
+Extra tools, skills and MCP connectors are added from the Apps page (local catalogue: `apps/catalog.json`, which wins over the registry and is the only place install commands may be defined). What is installed right now is listed in `apps/INSTALLED.md`: read it when choosing how to do a task, and prefer those tools.
 
 ## Studio UI
 

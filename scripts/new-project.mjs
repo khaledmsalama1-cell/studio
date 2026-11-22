@@ -2,6 +2,7 @@
 // Scaffold a content project for a brand.
 //   npm run new -- --brand example-coffee --format reel --name fresh-beans [--engine hyperframes|remotion]
 //   npm run new -- --brand example-coffee --format post --name banner --width 1500 --height 500   # custom size
+//   npm run new -- --brand example-coffee --template reel-myth-fact.json --topic "fresh beans"     # from a studio-templates entry
 // Formats: reel, promo, landscape (video) · carousel, post, square, story (static PNG)
 import fs from "node:fs";
 import path from "node:path";
@@ -10,7 +11,10 @@ import { loadBrand, brandCSS, brandTokens, copyLogos } from "./lib/brand.mjs";
 
 const args = parseArgs();
 const brand = loadBrand(args.brand);
-const format = args.format || "reel";
+// A studio-templates entry decides the format and supplies the scenes
+const template = args.template ? readJSON(path.resolve(args.template)) : null;
+if (template && (template.kind !== "studio" || !Array.isArray(template.scenes))) die("--template must be a studio template JSON file");
+const format = template?.format || args.format || "reel";
 const engine = args.engine || "hyperframes";
 const presetPath = path.join(ROOT, "templates/hyperframes/presets", `${format}.json`);
 if (!fs.existsSync(presetPath)) {
@@ -47,15 +51,18 @@ if (engine === "hyperframes") {
 const logos = copyLogos(brand, path.join(dir, "assets/brand"));
 for (const sub of ["assets", "out"]) fs.mkdirSync(path.join(dir, sub), { recursive: true });
 
-const fill = (s) =>
-  typeof s === "string"
-    ? s
-        .replace("{{cta}}", brand.ctas?.[0] || "Follow for more")
-        .replace("{{product}}", brand.products?.[0]?.name || brand.name)
-        .replace("{{brand}}", brand.name)
-    : s;
+// Placeholders in presets and templates, filled from brand.json
+const values = {
+  brand: brand.name,
+  product: brand.products?.[0]?.name || brand.name,
+  cta: brand.ctas?.[0] || "Follow for more",
+  topic: args.topic || brand.content_pillars?.[0]?.name?.toLowerCase() || "this",
+  audience: brand.audience?.[0]?.name || "you",
+  handle: brand.platforms?.instagram?.handle || brand.platforms?.tiktok?.handle || `@${brand.slug}`,
+};
+const fill = (v) => (typeof v === "string" ? v.replace(/\{\{(\w+)\}\}/g, (m, k) => values[k] ?? m) : Array.isArray(v) ? v.map(fill) : v);
 const { description, ...content } = preset;
-content.scenes = content.scenes.map((s) => Object.fromEntries(Object.entries(s).map(([k, v]) => [k, fill(v)])));
+content.scenes = (template ? template.scenes : content.scenes).map((s) => Object.fromEntries(Object.entries(s).map(([k, v]) => [k, fill(v)])));
 writeJSON(path.join(dir, "content.json"), content);
 
 writeJSON(path.join(dir, "project.json"), {
@@ -68,6 +75,7 @@ writeJSON(path.join(dir, "project.json"), {
   logos,
   createdAt: date,
   status: "draft",
+  ...(template ? { template: template.id } : {}),
 });
 
 fs.writeFileSync(
@@ -75,7 +83,7 @@ fs.writeFileSync(
   `# ${args.name || name}
 
 - **Brand:** ${brand.name} (\`brands/${brand.slug}\`)
-- **Format:** ${format} — ${description}
+- **Format:** ${format} — ${description}${template ? `\n- **Template:** ${template.name} — ${template.description}` : ""}${args.topic ? `\n- **Topic:** ${args.topic}` : ""}
 - **Engine:** ${engine}
 - **Platforms:** ${(args.platforms || (preset.static ? "instagram, linkedin" : "instagram, tiktok, youtube")).toString()}
 
