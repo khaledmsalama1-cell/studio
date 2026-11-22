@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { api, ago, type BrandSummary, type ProjectSummary } from "../lib/api";
 import { SceneFrame, Stage } from "../components/ScenePreview";
-import { CreateDialog } from "../components/CreateDialog";
 import { Badge, Button, Empty, PageHeader, Select, cx } from "../components/ui";
 
 const STATUSES = ["all", "draft", "in-review", "ready", "posted", "archived"];
@@ -49,7 +48,6 @@ export default function Projects() {
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-5">{list.map((p) => <ProjectCard key={p.brand + p.id} p={p} />)}</div>
       )}
-      <CreateDialog open={params.get("new") === "1"} defaultBrand={brand} onClose={() => setParams(brand ? { brand } : {})} />
     </>
   );
 }

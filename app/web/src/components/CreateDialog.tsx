@@ -8,7 +8,7 @@ import { SceneFrame, Stage } from "./ScenePreview";
 import { Button, ErrorNote, Field, Input, Select, Textarea, cx } from "./ui";
 
 // ---------------------------------------------------------------- catalogue
-type Cat = "for-you" | "short" | "social" | "stories" | "long" | "custom" | "idea";
+export type Cat = "for-you" | "short" | "social" | "stories" | "long" | "custom" | "idea";
 type Entry = {
   id: string;
   preset: string;
@@ -47,7 +47,9 @@ const CATS: { id: Cat; label: string; icon: ReactNode }[] = [
 ];
 
 // ---------------------------------------------------------------- dialog
-export function CreateDialog({ open, onClose, defaultBrand }: { open: boolean; onClose: () => void; defaultBrand?: string }) {
+export type CreateStart = { cat?: Cat; entry?: string; query?: string };
+
+export function CreateDialog({ open, onClose, defaultBrand, start }: { open: boolean; onClose: () => void; defaultBrand?: string; start?: CreateStart }) {
   const ref = useRef<HTMLDialogElement>(null);
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: () => api.get<Meta>("/api/meta") });
   const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
@@ -63,12 +65,14 @@ export function CreateDialog({ open, onClose, defaultBrand }: { open: boolean; o
     if (!d) return;
     if (open && !d.open) {
       d.showModal();
-      setPicked(null);
-      setQuery("");
-      setCat("for-you");
-      setTimeout(() => search.current?.focus(), 30);
+      // Open where the caller pointed: a format's details, a category, or a search
+      setPicked(ENTRIES.find((e) => e.id === start?.entry) || null);
+      setQuery(start?.query || "");
+      setCat(start?.cat || "for-you");
+      if (!start?.entry) setTimeout(() => search.current?.focus(), 30);
     }
     if (!open && d.open) d.close();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   useEffect(() => {
     if (!brandSlug && brands?.length) setBrandSlug(defaultBrand || brands[0].slug);

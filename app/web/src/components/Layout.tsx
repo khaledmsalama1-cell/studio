@@ -1,15 +1,16 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { NavLink, Outlet } from "react-router";
-import { ChevronUp, Clapperboard, Headphones, LayoutGrid, ListChecks, MessageSquareText, Monitor, Moon, Palette, Radar, Settings, Sun } from "lucide-react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { ChevronUp, Clapperboard, Plus, Headphones, LayoutGrid, ListChecks, MessageSquareText, Monitor, Moon, Palette, Radar, Settings, Sun } from "lucide-react";
 import { useTheme } from "../lib/theme";
 import { NowPlaying } from "../lib/player";
 import { useJobFeed } from "../lib/jobs";
 import type { JobSummary } from "../lib/api";
 import { JobLog, Duration } from "./JobLog";
+import { CreateDialog, type CreateStart } from "./CreateDialog";
 import { cx } from "./ui";
 
-type Ctx = { jobs: JobSummary[]; openJob: (id: string) => void };
-const JobsCtx = createContext<Ctx>({ jobs: [], openJob: () => {} });
+type Ctx = { jobs: JobSummary[]; openJob: (id: string) => void; openCreate: (start?: CreateStart & { brand?: string }) => void };
+const JobsCtx = createContext<Ctx>({ jobs: [], openJob: () => {}, openCreate: () => {} });
 export const useJobs = () => useContext(JobsCtx);
 
 const NAV = [
@@ -30,10 +31,23 @@ export function Layout() {
     setOpen(id);
     setDock(true);
   };
+  // One Create picker for the whole app: rail button, Home shortcuts, and any ?new=1 link
+  const [create, setCreate] = useState<(CreateStart & { brand?: string }) | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    if (p.get("new") === "1") {
+      setCreate({ brand: p.get("brand") || undefined });
+      p.delete("new");
+      navigate({ pathname: location.pathname, search: p.toString() }, { replace: true });
+    }
+  }, [location, navigate]);
   return (
-    <JobsCtx.Provider value={{ jobs, openJob }}>
+    <JobsCtx.Provider value={{ jobs, openJob, openCreate: (s) => setCreate(s || {}) }}>
+      <CreateDialog open={!!create} start={create || undefined} defaultBrand={create?.brand} onClose={() => setCreate(null)} />
       <div className="flex h-full flex-col md:flex-row">
-        <Rail />
+        <Rail onCreate={() => setCreate({})} />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <main className="min-h-0 flex-1 overflow-y-auto">
             <div className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8">
@@ -66,13 +80,17 @@ export function Logo({ className = "size-7" }: { className?: string }) {
   );
 }
 
-function Rail() {
+function Rail({ onCreate }: { onCreate: () => void }) {
   return (
     <nav aria-label="Main" className="flex flex-none items-center gap-1 overflow-x-auto border-b border-line-soft bg-surface px-3 py-2 md:w-[240px] md:flex-col md:items-stretch md:gap-0.5 md:border-r md:border-b-0 md:px-4 md:py-5">
       <div className="mr-2 flex items-center gap-2.5 px-2 md:mr-0 md:mb-6">
         <Logo />
         <span className="hidden font-display text-[17px] font-medium tracking-[-0.01em] md:inline">Studio</span>
       </div>
+      <button onClick={onCreate} className="mr-1 flex h-9 flex-none items-center gap-2 rounded-lg bg-cobalt-fill px-3 text-body font-medium text-white transition-[background-color,transform] duration-150 hover:bg-cobalt-fill-hover active:scale-[0.98] md:mr-0 md:mb-4 md:h-10">
+        <Plus className="size-[18px]" strokeWidth={2} />
+        Create
+      </button>
       {NAV.map(({ to, label, icon: Icon, end }) => (
         <NavLink key={to} to={to} end={end} className={navRow}>
           <Icon className="size-[18px] flex-none" strokeWidth={1.5} />
