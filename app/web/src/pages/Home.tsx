@@ -4,14 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Headphones, MessageSquareText, Palette, Plus, Radar, Ruler, Search, Sparkles } from "lucide-react";
 import { api, ago, fmt, type BrandSummary, type JobSummary, type ProjectSummary, type ResearchSummary } from "../lib/api";
 import { useJobs, Section } from "../components/Layout";
-import { SceneFrame, Stage } from "../components/ScenePreview";
-import { Badge, Button, Empty, cx } from "../components/ui";
+import { ProjectTile } from "../components/ProjectTile";
+import { Button, Empty, cx } from "../components/ui";
 import { BrandCard } from "./Brands";
 import { PLATFORM_LABEL } from "./Research";
 
 type Overview = { brands: BrandSummary[]; projects: ProjectSummary[]; research: ResearchSummary[]; running: JobSummary[] };
-const STATIC = new Set(["carousel", "post", "square", "story"]);
-const FORMAT_LABEL: Record<string, string> = { reel: "Reel", promo: "Promo", landscape: "Video", carousel: "Carousel", post: "Post", square: "Square post", story: "Story" };
+import { FORMAT_LABEL } from "../components/ProjectTile";
 
 export default function Home() {
   const { data } = useQuery({ queryKey: ["overview"], queryFn: () => api.get<Overview>("/api/overview") });
@@ -56,7 +55,7 @@ export default function Home() {
           </Empty>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-x-5 gap-y-8">
-            {data?.projects.slice(0, 10).map((p) => <ContinueTile key={p.brand + p.id} p={p} brand={data.brands.find((b) => b.slug === p.brand)} />)}
+            {data?.projects.slice(0, 10).map((p) => <ProjectTile key={p.brand + p.id} p={p} brand={data.brands.find((b) => b.slug === p.brand)} />)}
           </div>
         )}
       </Section>
@@ -206,41 +205,5 @@ function FormatGlyph({ brand, w, h, stack, bars }: { brand?: BrandSummary; w: nu
         <span className="h-[2px] w-1/2 rounded-full" style={{ background: c.accent || "#f80" }} />
       </span>
     </span>
-  );
-}
-
-// ---------------------------------------------------------------- continue working
-function ContinueTile({ p, brand }: { p: ProjectSummary; brand?: BrandSummary }) {
-  const w = p.width || 1080;
-  const h = p.height || 1920;
-  const thumbH = w > h ? 104 : w === h ? 128 : 150;
-  return (
-    <Link to={`/projects/${p.brand}/${p.id}`} className="group block">
-      <div className="flex h-[188px] items-center justify-center rounded-xl bg-surface transition-colors duration-150 group-hover:bg-line-soft">
-        <div className="overflow-hidden rounded-[5px] shadow-[0_4px_14px_rgb(0_0_0/0.14)] transition-transform duration-200 group-hover:-translate-y-0.5" style={{ height: thumbH, width: Math.round((thumbH * w) / h) }}>
-          {p.thumbnail ? (
-            <img src={p.thumbnail} alt="" className="size-full object-cover" />
-          ) : p.firstScene ? (
-            <Stage width={w} height={h}>
-              <SceneFrame scene={p.firstScene} colors={p.colors} fonts={p.fonts} width={w} height={h} index={0} total={p.scenes} isStatic={STATIC.has(p.format)} />
-            </Stage>
-          ) : null}
-        </div>
-      </div>
-      <div className="mt-2.5 flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-body font-medium">{p.name}</span>
-        {brand && (
-          <span className="flex size-6 flex-none items-center justify-center overflow-hidden rounded-full" style={{ background: brand.colors.primary }} title={brand.name}>
-            {brand.logo ? <img src={brand.logo} alt="" className="size-4 object-contain" /> : <span className="text-[10px] font-medium" style={{ color: brand.colors.secondary }}>{brand.name[0]}</span>}
-          </span>
-        )}
-      </div>
-      <div className="mt-0.5 flex items-center gap-2 text-meta text-ink-3">
-        <span>{FORMAT_LABEL[p.format] || p.format}</span>
-        <span aria-hidden>·</span>
-        <span className="truncate">Edited {ago(p.updated)}</span>
-        {p.status !== "draft" && <Badge status={p.status} />}
-      </div>
-    </Link>
   );
 }
