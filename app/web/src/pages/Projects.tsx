@@ -70,9 +70,12 @@ export default function Projects() {
 
   return (
     <>
-      <section className="mb-8 rounded-[20px] border border-line-soft bg-surface px-5 pt-12 pb-8 text-center md:px-10">
-        <h1 className="text-[36px] leading-[1.05] tracking-[-0.03em] md:text-[48px]">All projects</h1>
-        <label className="mx-auto mt-7 flex h-14 max-w-[720px] items-center gap-3 rounded-2xl border border-line bg-raised px-5 text-left transition-colors duration-150 focus-within:border-cobalt focus-within:ring-4 focus-within:ring-cobalt/15">
+      <section className="mb-8">
+        <div className="mb-5 flex items-baseline justify-between gap-4">
+          <h1 className="text-title tracking-[-0.03em]">Projects</h1>
+          <span className="text-caption text-ink-3 tabular-nums">{(data || []).filter((p) => p.status !== "archived").length} active</span>
+        </div>
+        <label className="flex h-12 max-w-[720px] items-center gap-3 rounded-xl border border-line bg-raised px-4 text-left transition-colors duration-150 focus-within:border-cobalt focus-within:ring-4 focus-within:ring-cobalt/15">
           <Search className="size-5 flex-none text-ink-3" strokeWidth={1.5} />
           <input value={q} onChange={(e) => setParam("q", e.target.value)} placeholder="Search projects by name, brand or on-screen text" aria-label="Search projects" className="h-full min-w-0 flex-1 bg-transparent text-ui placeholder:text-ink-3 focus:outline-none focus-visible:outline-none" />
           {q && (
@@ -81,7 +84,7 @@ export default function Projects() {
             </button>
           )}
         </label>
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <FilterMenu label="Type" value={type} onChange={(v) => setParam("type", v)} options={TYPES.map((t) => [t, FORMAT_LABEL[t] || t])} />
           <FilterMenu label="Brand" value={brand} onChange={(v) => setParam("brand", v)} options={(brands || []).map((b) => [b.slug, b.name])} />
           <FilterMenu label="Status" value={status} onChange={(v) => setParam("status", v)} options={STATUSES.map((s) => [s, s.replace("-", " ")])} />
@@ -91,17 +94,17 @@ export default function Projects() {
               Clear all
             </button>
           )}
+          <div className="ml-auto flex items-center gap-1">
+            <FilterMenu label="Sort" icon={<ArrowDownUp className="size-[18px]" strokeWidth={1.5} />} bare required value={sort} onChange={(v) => setParam("sort", v === "edited" ? "" : v)} options={SORTS} />
+            <IconToggle on={view === "grid"} onClick={() => setParam("view", "")} label="Grid view" icon={<LayoutGrid className="size-[18px]" strokeWidth={1.5} />} />
+            <IconToggle on={view === "list"} onClick={() => setParam("view", "list")} label="List view" icon={<List className="size-[18px]" strokeWidth={1.5} />} />
+            <button onClick={() => openCreate({ brand: brand || undefined })} className="ml-2 flex size-10 items-center justify-center rounded-full border border-line bg-raised text-ink transition-[border-color,transform] duration-150 hover:border-ink-3/60 active:scale-95" aria-label="Create a project">
+              <Plus className="size-5" strokeWidth={1.75} />
+            </button>
+          </div>
         </div>
       </section>
 
-      <div className="mb-6 flex items-center justify-end gap-1">
-        <FilterMenu label="Sort" icon={<ArrowDownUp className="size-[18px]" strokeWidth={1.5} />} bare required value={sort} onChange={(v) => setParam("sort", v === "edited" ? "" : v)} options={SORTS} />
-        <IconToggle on={view === "grid"} onClick={() => setParam("view", "")} label="Grid view" icon={<LayoutGrid className="size-[18px]" strokeWidth={1.5} />} />
-        <IconToggle on={view === "list"} onClick={() => setParam("view", "list")} label="List view" icon={<List className="size-[18px]" strokeWidth={1.5} />} />
-        <button onClick={() => openCreate({ brand: brand || undefined })} className="ml-2 flex size-10 items-center justify-center rounded-full border border-line bg-raised text-ink transition-[border-color,transform] duration-150 hover:border-ink-3/60 active:scale-95" aria-label="Create a project">
-          <Plus className="size-5" strokeWidth={1.75} />
-        </button>
-      </div>
 
       {isLoading ? (
         <p className="text-ink-3">Loading projects…</p>

@@ -5,6 +5,7 @@ import { Headphones, MessageSquareText, Palette, Plus, Radar, Ruler, Search, Spa
 import { api, ago, fmt, type BrandSummary, type JobSummary, type ProjectSummary, type ResearchSummary } from "../lib/api";
 import { useJobs, Section } from "../components/Layout";
 import { ProjectTile } from "../components/ProjectTile";
+import { StageWall } from "../components/StageWall";
 import { Button, Empty, cx } from "../components/ui";
 import { BrandCard } from "./Brands";
 import { PLATFORM_LABEL } from "./Research";
@@ -20,15 +21,22 @@ export default function Home() {
 
   return (
     <>
-      {/* Hero: one question, one search that reaches everything */}
-      <section className="mb-10 rounded-[20px] border border-line-soft bg-surface px-5 pt-14 pb-12 text-center md:px-10">
-        <h1 className="text-[36px] leading-[1.05] tracking-[-0.03em] md:text-[52px]">What will you make today?</h1>
-        <p className="mx-auto mt-3 max-w-[52ch] text-body text-ink-2">
-          {data
-            ? `${data.brands.length} ${data.brands.length === 1 ? "brand" : "brands"}, ${data.projects.length} ${data.projects.length === 1 ? "project" : "projects"}${data.running.length ? `, ${data.running.length} running now` : ""}`
-            : "Opening the studio…"}
-        </p>
-        <HomeSearch onCreate={(q) => openCreate({ query: q })} onAsk={(q) => nav("/claude", { state: { prompt: q } })} />
+      {/* Hero: the stage. Your own frames stand on its floor; one question and one search sit in the open middle */}
+      <section className="relative mb-10 overflow-hidden rounded-[20px] bg-stage px-5 pt-14 pb-16 text-center text-stage-ink md:px-10 lg:pb-28">
+        {data && <StageWall projects={data.projects} brands={data.brands} />}
+        <div className="relative">
+          <h1 className="text-[36px] leading-[1.05] tracking-[-0.03em] text-white md:text-[52px]">What will you make today?</h1>
+          <p className="mx-auto mt-3 flex max-w-[52ch] items-center justify-center gap-2 text-body text-stage-ink/75">
+            {/* Tally light: lit while something renders, like a camera that's recording */}
+            <span aria-hidden className={cx("size-2 rounded-full", data?.running.length ? "bg-signal shadow-[0_0_0_3px_rgb(245_197_24/0.18)]" : "bg-white/20")} />
+            {data
+              ? `${data.brands.length} ${data.brands.length === 1 ? "brand" : "brands"}, ${data.projects.length} ${data.projects.length === 1 ? "project" : "projects"}${data.running.length ? `, ${data.running.length} running now` : ""}`
+              : "Opening the studio"}
+          </p>
+          <div className="mx-auto max-w-[620px]">
+            <HomeSearch onCreate={(q) => openCreate({ query: q })} onAsk={(q) => nav("/claude", { state: { prompt: q } })} />
+          </div>
+        </div>
       </section>
 
       {/* Shortcuts: formats drawn in the brand's own colours, tools as quiet icons */}
@@ -134,7 +142,7 @@ function HomeSearch({ onCreate, onAsk }: { onCreate: (q: string) => void; onAsk:
 
   return (
     <div ref={box} className="relative mx-auto mt-8 max-w-[720px] text-left">
-      <label className="flex h-14 items-center gap-3 rounded-2xl border border-line bg-raised px-5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-colors duration-150 focus-within:border-cobalt focus-within:ring-4 focus-within:ring-cobalt/15">
+      <label className="flex h-14 items-center gap-3 rounded-2xl border border-line bg-raised px-5 text-ink shadow-[0_8px_24px_rgb(0_0_0/0.3)] transition-colors duration-150 focus-within:border-cobalt focus-within:ring-4 focus-within:ring-cobalt/15">
         <Search className="size-5 flex-none text-ink-3" strokeWidth={1.5} />
         <input
           value={q}
