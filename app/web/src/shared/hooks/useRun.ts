@@ -1,17 +1,17 @@
 import { useState } from "react";
-import { api, type JobSummary } from "@/shared/api";
+import type { JobSummary } from "@/shared/api/types";
 import { useJobs } from "@/app/Layout";
 
-/** POST an action that starts a job, open it in the dock, and expose busy/error state. */
+/** Run an action that starts a job (from a feature's api.ts), open it in the dock, and expose busy/error state. */
 export function useRun() {
   const { openJob, jobs } = useJobs();
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
-  const run = async (url: string, body?: unknown, { openDock = true } = {}) => {
+  const run = async (action: () => Promise<{ job: JobSummary }>, { openDock = true } = {}) => {
     setError(null);
     setPending(true);
     try {
-      const { job } = await api.post<{ job: JobSummary }>(url, body);
+      const { job } = await action();
       if (openDock) openJob(job.id);
       return job;
     } catch (e) {

@@ -1,33 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, Copy, Download, ExternalLink, Film, Hammer, Mic, Plus, Save, ScanEye, Sparkles, Trash2, Upload } from "lucide-react";
-import { api, bytes, type JobSummary, type ProjectDetail as PD, type Scene, type SettingsData } from "@/shared/api";
-import { useRun } from "@/shared/useRun";
+import type { JobSummary, ProjectDetail as PD, Scene } from "@/shared/api/types";
+import { bytes } from "@/shared/format";
+import { useRun } from "@/shared/hooks/useRun";
 import { useJobs } from "@/app/Layout";
 import { SceneFrame, Stage } from "@/shared/scene/ScenePreview";
 import { JobLog } from "@/features/jobs";
 import { Markdown } from "@/shared/ui/Markdown";
 import { Badge, Button, Empty, ErrorNote, Field, Input, Panel, Select, Tabs, Textarea, cx } from "@/shared/ui/ui";
+import { askAgent } from "@/features/agents/api";
+import { runProjectStep, saveProjectContent, saveProjectText, setProjectStatus, uploadProjectAssets, useProject } from "./api";
+import { useSettings } from "@/features/settings/api";
+import { getJob } from "@/features/jobs/api";
+import { addScene, changeSceneType, duplicateScene, findPreviewUrl, mainVideo, moveScene, patchScene, projectName, removeScene, speakingSeconds, totalWords, words, WORDS_PER_SECOND } from "./model";
 
 const TYPE_LABEL: Record<Scene["type"], string> = { hook: "Hook", point: "Point", list: "List", stat: "Big number", quote: "Quote", media: "Photo / video", cta: "Call to action" };
-const BLANK: Record<Scene["type"], Scene> = {
-  hook: { type: "hook", text: "", say: "" },
-  point: { type: "point", kicker: "", text: "", say: "" },
-  list: { type: "list", text: "", items: ["", "", ""], say: "" },
-  stat: { type: "stat", value: "", text: "", say: "" },
-  quote: { type: "quote", text: "", author: "", say: "" },
-  media: { type: "media", src: "", text: "", say: "" },
-  cta: { type: "cta", text: "", button: "", say: "" },
-};
-const words = (s?: string) => (s || "").trim().split(/\s+/).filter(Boolean).length;
 
 type Tab = "brief" | "caption" | "audio" | "assets" | "frames" | "outputs" | "claude";
 
 export default function ProjectDetail() {
   const { brand = "", id = "" } = useParams();
   const qc = useQueryClient();
-  const { data, error } = useQuery({ queryKey: ["project", brand, id], queryFn: () => api.get<PD>(`/api/projects/${brand}/${id}`) });
+  const { data, error } = useProject(brand, id);
   const [content, setContent] = useState<PD["content"] | null>(null);
   const saved = useRef("");
   const [sel, setSel] = useState(0);
@@ -48,7 +44,7 @@ export default function ProjectDetail() {
     if (!content || !dirty) return true;
     setSaveErr(null);
     try {
-      await api.put(`/api/projects/${brand}/${id}/content`, content);
+      await saveProjectContent(brand, id, content);
       saved.current = JSON.stringify(content);
       qc.invalidateQueries({ queryKey: ["projects"] });
       return true;
@@ -66,7 +62,7 @@ export default function ProjectDetail() {
   }, [content]);
 
   const action = async (name: string, body?: object) => {
-    if (await save()) return run(`/api/projects/${brand}/${id}/run/${name}`, body);
+    if (await save()) return run(() => runProjectStep(brand, id, name, body));
   };
 
   if (error) return <ErrorNote error={error} />;
@@ -84,18 +80,14 @@ export default function ProjectDetail() {
   const busy = (k: string) => !!running(k, meta);
 
   const setScenes = (next: Scene[]) => setContent({ ...content, scenes: next });
-  const patch = (i: number, s: Partial<Scene>) => setScenes(scenes.map((x, j) => (j === i ? { ...x, ...s } : x)));
+  const patch = (i: number, s: Partial<Scene>) => setScenes(patchScene(scenes, i, s));
   const move = (i: number, d: number) => {
-    const j = i + d;
-    if (j < 0 || j >= scenes.length) return;
-    const next = [...scenes];
-    [next[i], next[j]] = [next[j], next[i]];
-    setScenes(next);
-    setSel(j);
+    const r = moveScene(scenes, i, d);
+    if (r) (setScenes(r.scenes), setSel(r.index));
   };
-  const totalWords = scenes.reduce((n, s) => n + words(s.say), 0);
+  const spokenWords = totalWords(scenes);
   const assetUrl = (src?: string) => (src ? data.assets.find((a) => a.path === src)?.url : null);
-  const video = data.outputs.find((o) => o.kind === "video" && !/-(1x1|4x5|16x9)\.mp4$/.test(o.name));
+  const video = mainVideo(data.outputs);
 
   const frame = (s: Scene, i: number) => (
     <SceneFrame scene={s} colors={p.brand.colors} fonts={p.brand.fonts} width={W} height={H} logo={logo} handle={p.brand.handle} brandName={p.brand.name} index={i} total={scenes.length} isStatic={isStatic} captions={capsOn} mediaUrl={assetUrl(s.src)} />
@@ -108,7 +100,7 @@ export default function ProjectDetail() {
       </div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-title font-medium">{id.replace(/^\d{4}-\d{2}-\d{2}-/, "")}</h1>
+          <h1 className="text-title font-medium">{projectName(id)}</h1>
           <p className="mt-1 text-ink-2">
             {p.format} · {W}×{H} · {isStatic ? `${scenes.length} slides` : `${p.engine}`}
             {data.timing && !isStatic && ` · ${data.timing.total.toFixed(1)}s`}
@@ -119,7 +111,7 @@ export default function ProjectDetail() {
           <Select
             value={p.status}
             onChange={async (e) => {
-              await api.put(`/api/projects/${brand}/${id}/status`, { status: e.target.value });
+              await setProjectStatus(brand, id, { status: e.target.value });
               qc.invalidateQueries();
             }}
             className="w-36"
@@ -138,7 +130,7 @@ export default function ProjectDetail() {
         isStatic={isStatic}
         engine={p.engine}
         data={data}
-        totalWords={totalWords}
+        spokenWords={spokenWords}
         busy={busy}
         onVoice={(body) => action("voice", body)}
         onBuild={() => action("build")}
@@ -167,7 +159,7 @@ export default function ProjectDetail() {
             </button>
           );
         })}
-        <AddScene onAdd={(type) => (setScenes([...scenes, structuredClone(BLANK[type])]), setSel(scenes.length))} tall={W <= H} />
+        <AddScene onAdd={(type) => (setScenes(addScene(scenes, type)), setSel(scenes.length))} tall={W <= H} />
       </div>
 
       {/* Selected scene: big frame + fields */}
@@ -185,8 +177,8 @@ export default function ProjectDetail() {
               <>
                 <Button size="sm" variant="ghost" onClick={() => move(sel, -1)} disabled={sel === 0} icon={<ArrowLeft className="size-4" />} aria-label="Move earlier" />
                 <Button size="sm" variant="ghost" onClick={() => move(sel, 1)} disabled={sel === scenes.length - 1} icon={<ArrowRight className="size-4" />} aria-label="Move later" />
-                <Button size="sm" variant="ghost" onClick={() => (setScenes([...scenes.slice(0, sel + 1), structuredClone(scene), ...scenes.slice(sel + 1)]), setSel(sel + 1))} icon={<Copy className="size-4" />} aria-label="Duplicate" />
-                <Button size="sm" variant="ghost" disabled={scenes.length === 1} onClick={() => (setScenes(scenes.filter((_, j) => j !== sel)), setSel(Math.max(0, sel - 1)))} icon={<Trash2 className="size-4" />} aria-label="Delete scene" />
+                <Button size="sm" variant="ghost" onClick={() => (setScenes(duplicateScene(scenes, sel)), setSel(sel + 1))} icon={<Copy className="size-4" />} aria-label="Duplicate" />
+                <Button size="sm" variant="ghost" disabled={scenes.length === 1} onClick={() => (setScenes(removeScene(scenes, sel)), setSel(Math.max(0, sel - 1)))} icon={<Trash2 className="size-4" />} aria-label="Delete scene" />
               </>
             }
           >
@@ -222,24 +214,24 @@ export default function ProjectDetail() {
 }
 
 // ---------------------------------------------------------------- pipeline (a real sequence, so numbered)
-function Pipeline({ isStatic, engine, data, totalWords, busy, onVoice, onBuild, onFrames, onRender, onPreview, brandVoice }: {
-  isStatic: boolean; engine: string; data: PD; totalWords: number; busy: (k: string) => boolean;
+function Pipeline({ isStatic, engine, data, spokenWords, busy, onVoice, onBuild, onFrames, onRender, onPreview, brandVoice }: {
+  isStatic: boolean; engine: string; data: PD; spokenWords: number; busy: (k: string) => boolean;
   onVoice: (b: object) => void; onBuild: () => void; onFrames: () => void; onRender: (v: string[]) => void; onPreview: () => Promise<JobSummary | null | undefined>; brandVoice?: { provider?: string; voice_id?: string };
 }) {
   const [provider, setProvider] = useState(brandVoice?.provider || "elevenlabs");
-  const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: () => api.get<SettingsData>("/api/settings"), staleTime: 60_000 });
+  const { data: settings } = useSettings({ staleTime: 60_000 });
   const [variants, setVariants] = useState<string[]>([]);
   useEffect(() => {
     if (settings) setVariants(settings.studio.variants);
   }, [settings]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const hf = engine === "hyperframes";
-  const secs = totalWords / 2.8;
+  const secs = spokenWords / WORDS_PER_SECOND;
   const steps = [
     !isStatic && {
       key: "voice",
       title: "Voiceover",
-      status: data.captions ? `${data.captions.words.length} words · ${(data.captions.words.at(-1)?.end ?? 0).toFixed(1)}s` : `${totalWords} words to read, about ${Math.round(secs)}s`,
+      status: data.captions ? `${data.captions.words.length} words · ${(data.captions.words.at(-1)?.end ?? 0).toFixed(1)}s` : `${spokenWords} words to read, about ${Math.round(secs)}s`,
       done: !!data.captions,
       body: (
         <div className="flex gap-2">
@@ -247,7 +239,7 @@ function Pipeline({ isStatic, engine, data, totalWords, busy, onVoice, onBuild, 
             <option value="elevenlabs">ElevenLabs</option>
             <option value="kokoro">Kokoro (free)</option>
           </Select>
-          <Button size="sm" variant={data.captions ? "secondary" : "primary"} icon={<Mic className="size-4" />} busy={busy("voice")} disabled={!totalWords} onClick={() => onVoice({ provider })}>
+          <Button size="sm" variant={data.captions ? "secondary" : "primary"} icon={<Mic className="size-4" />} busy={busy("voice")} disabled={!spokenWords} onClick={() => onVoice({ provider })}>
             {data.captions ? "Redo" : "Record"}
           </Button>
         </div>
@@ -288,8 +280,8 @@ function Pipeline({ isStatic, engine, data, totalWords, busy, onVoice, onBuild, 
             if (!job) return;
             for (let i = 0; i < 60; i++) {
               await new Promise((r) => setTimeout(r, 1000));
-              const j = await api.get<{ log: string[]; status: string }>(`/api/jobs/${job.id}`);
-              const url = j.log.join("\n").match(/https?:\/\/(?:localhost|127\.0\.0\.1):\d+[^\s"')]*/)?.[0];
+              const j = await getJob(job.id);
+              const url = findPreviewUrl(j.log);
               if (url) return setPreviewUrl(url);
               if (j.status !== "running" && i > 3) return;
             }
@@ -365,7 +357,7 @@ function SceneFields({ scene, onChange, isStatic, assets }: { scene: Scene; onCh
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Scene type">
-          <Select value={t} onChange={(e) => onChange({ ...BLANK[e.target.value as Scene["type"]], text: scene.text, say: scene.say, sub: scene.sub })}>
+          <Select value={t} onChange={(e) => onChange(changeSceneType(scene, e.target.value as Scene["type"]))}>
             {(Object.keys(TYPE_LABEL) as Scene["type"][]).map((k) => (
               <option key={k} value={k}>
                 {TYPE_LABEL[k]}
@@ -436,7 +428,7 @@ function SceneFields({ scene, onChange, isStatic, assets }: { scene: Scene; onCh
         </Field>
       )}
       {!isStatic && (
-        <Field label="Voiceover line" hint={`${words(scene.say)} words, about ${(words(scene.say) / 2.8).toFixed(1)}s spoken. Scenes cut on the first word of this line.`}>
+        <Field label="Voiceover line" hint={`${words(scene.say)} words, about ${speakingSeconds(scene.say).toFixed(1)}s spoken. Scenes cut on the first word of this line.`}>
           <Textarea rows={3} value={scene.say || ""} onChange={(e) => onChange({ say: e.target.value })} />
         </Field>
       )}
@@ -460,7 +452,7 @@ function TextDoc({ brand, id, file, initial }: { brand: string; id: string; file
     setState("dirty");
     const t = setTimeout(async () => {
       setState("saving");
-      await api.put(`/api/projects/${brand}/${id}/${file}`, { text });
+      await saveProjectText(brand, id, file, { text });
       setState("saved");
     }, 800);
     return () => clearTimeout(t);
@@ -547,9 +539,9 @@ function RecordingUpload({ data }: { data: PD }) {
           try {
             const fd = new FormData();
             fd.append("file", f);
-            const { saved } = await api.post<{ saved: string[] }>(`/api/projects/${data.brand}/${data.id}/assets`, fd);
+            const { saved } = await uploadProjectAssets(data.brand, data.id, fd);
             qc.invalidateQueries({ queryKey: ["project", data.brand, data.id] });
-            await run(`/api/projects/${data.brand}/${data.id}/run/voice`, { audio: saved[0] });
+            await run(() => runProjectStep(data.brand, data.id, "voice", { audio: saved[0] }));
           } catch (x) {
             setErr(x);
           }
@@ -572,7 +564,7 @@ function AssetsTab({ data }: { data: PD }) {
     try {
       const fd = new FormData();
       for (const f of Array.from(files)) fd.append("file", f);
-      await api.post(`/api/projects/${data.brand}/${data.id}/assets`, fd);
+      await uploadProjectAssets(data.brand, data.id, fd);
       qc.invalidateQueries({ queryKey: ["project", data.brand, data.id] });
     } catch (e) {
       setErr(e);
@@ -685,7 +677,7 @@ function ProjectClaude({ data, save }: { data: PD; save: () => Promise<boolean> 
   const shown = current || mine[0]?.id;
   const send = async (text: string, title?: string) => {
     await save();
-    const job = await run("/api/claude", { prompt: text, title: title || text.slice(0, 60), meta: { brand: data.brand, project: data.id } }, { openDock: false });
+    const job = await run(() => askAgent({ prompt: text, title: title || text.slice(0, 60), meta: { brand: data.brand, project: data.id } }), { openDock: false });
     if (job) setCurrent(job.id);
     setPrompt("");
   };

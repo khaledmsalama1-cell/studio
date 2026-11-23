@@ -1,41 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Clapperboard, ExternalLink, Film, Images, LayoutGrid, LayoutTemplate, MessageSquareText, Ruler, Search, Smartphone, Sparkles, X } from "lucide-react";
-import { api, type BrandSummary, type Meta, type Scene, type SettingsData } from "@/shared/api";
-import { useRun } from "@/shared/useRun";
+import type { BrandSummary, Meta, Scene } from "@/shared/api/types";
+import { useRun } from "@/shared/hooks/useRun";
 import { SceneFrame, Stage } from "@/shared/scene/ScenePreview";
 import { Button, ErrorNote, Field, Input, Select, Textarea, cx } from "@/shared/ui/ui";
+import { askAgent } from "@/features/agents/api";
+import { createProject } from "@/features/projects/api";
+import { useBrands } from "@/features/brands/api";
+import { useMeta } from "@/shared/api/queries";
+import { useSettings } from "@/features/settings/api";
+import { useTemplates } from "./api";
+import type { Template } from "./api";
+import { ENTRIES, FORMAT_NAME, groupTemplates, ideaPrompt, matchEntries, matchTemplates, toEntry, type Cat, type Entry } from "./model";
 
 // ---------------------------------------------------------------- catalogue
-export type Cat = "for-you" | "templates" | "short" | "social" | "stories" | "long" | "custom" | "idea";
-export type Entry = {
-  id: string;
-  preset: string;
-  name: string;
-  note: string;
-  cats: Cat[];
-  keywords: string;
-  look: "phone" | "stack" | "flat" | "story" | "screen";
-  sample: (b: BrandSummary) => Scene;
-  claim?: string; // what Claude should make, if a description is given
-  template?: string; // id in the studio-templates registry
-};
 
-const product = (b: BrandSummary) => b.tagline?.split(/[.,]/)[0] || b.name;
-export const ENTRIES: Entry[] = [
-  { id: "reel", preset: "reel", name: "Reel", note: "Instagram, TikTok, Shorts", cats: ["for-you", "short"], keywords: "reel instagram tiktok short vertical video 9:16", look: "phone", sample: () => ({ type: "hook", text: "3 things nobody *tells* you", say: "Stop scrolling, this one matters" }) },
-  { id: "promo", preset: "promo", name: "Product promo", note: "Hook, product, proof, call to action", cats: ["for-you", "short"], keywords: "promo product ad advert launch sale video", look: "phone", sample: () => ({ type: "stat", value: "4.9★", text: "from real customers", say: "And people love it" }) },
-  { id: "tiktok", preset: "reel", name: "TikTok video", note: "9:16 with captions", cats: ["short"], keywords: "tiktok video vertical", look: "phone", sample: () => ({ type: "point", kicker: "01", text: "The mistake everyone makes", say: "First, the mistake everyone makes" }) },
-  { id: "short", preset: "reel", name: "YouTube Short", note: "9:16, under a minute", cats: ["short"], keywords: "youtube short shorts vertical", look: "phone", sample: () => ({ type: "list", text: "In 30 seconds", items: ["Why it works", "How to start", "What to avoid"], say: "Here's the whole thing in thirty seconds" }) },
-  { id: "carousel", preset: "carousel", name: "Carousel", note: "Instagram, LinkedIn · swipeable slides", cats: ["for-you", "social"], keywords: "carousel slides swipe instagram linkedin 4:5", look: "stack", sample: (b) => ({ type: "hook", text: `How ${b.name} does it`, sub: "Swipe →" }) },
-  { id: "post", preset: "post", name: "Feed post", note: "Instagram, Facebook · 4:5", cats: ["for-you", "social"], keywords: "post feed instagram facebook 4:5 portrait", look: "flat", sample: (b) => ({ type: "hook", text: product(b), sub: b.name }) },
-  { id: "square", preset: "square", name: "Square post", note: "1:1 for any feed", cats: ["social"], keywords: "square post 1:1 feed", look: "flat", sample: (b) => ({ type: "point", kicker: "Tip", text: "One small change, a better result", sub: b.name }) },
-  { id: "quote", preset: "square", name: "Quote card", note: "A review or a line worth sharing", cats: ["social"], keywords: "quote review testimonial card", look: "flat", sample: () => ({ type: "quote", text: "Honestly the best I've had", author: "A happy customer" }) },
-  { id: "story", preset: "story", name: "Story frames", note: "Instagram, Facebook stories", cats: ["for-you", "stories"], keywords: "story stories frames 9:16", look: "story", sample: (b) => ({ type: "cta", text: b.ctas?.[0] || "Link in bio", button: "Tap to shop" }) },
-  { id: "landscape", preset: "landscape", name: "YouTube video", note: "16:9 with voiceover", cats: ["for-you", "long"], keywords: "youtube landscape 16:9 horizontal video long", look: "screen", sample: () => ({ type: "list", text: "Three things to know", items: ["Start here", "Then this", "Finally"], say: "Three things you need to know" }) },
-  { id: "linkedin-video", preset: "landscape", name: "LinkedIn video", note: "16:9 with captions", cats: ["long"], keywords: "linkedin video landscape 16:9 b2b", look: "screen", sample: (b) => ({ type: "hook", text: `What ${b.name} learned`, say: "Here's what we learned" }) },
-];
 
 const CATS: { id: Cat; label: string; icon: ReactNode }[] = [
   { id: "for-you", label: "For you", icon: <LayoutGrid /> },
@@ -53,8 +34,8 @@ export type CreateStart = { cat?: Cat; entry?: string; query?: string };
 
 export function CreateDialog({ open, onClose, defaultBrand, start }: { open: boolean; onClose: () => void; defaultBrand?: string; start?: CreateStart }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: () => api.get<Meta>("/api/meta") });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
+  const { data: meta } = useMeta();
+  const { data: brands } = useBrands();
   const [brandSlug, setBrandSlug] = useState(defaultBrand || "");
   const [cat, setCat] = useState<Cat>("for-you");
   const [query, setQuery] = useState("");
@@ -83,10 +64,10 @@ export function CreateDialog({ open, onClose, defaultBrand, start }: { open: boo
   const brand = brands?.find((b) => b.slug === brandSlug) || brands?.[0];
   const presets = Object.fromEntries((meta?.formats || []).map((f) => [f.id, f]));
   const q = query.trim().toLowerCase();
-  const { data: tplData } = useQuery({ queryKey: ["templates"], queryFn: () => api.get<{ templates: Template[]; status: { count: number; error: string | null } }>("/api/templates"), enabled: open });
+  const { data: tplData } = useTemplates({ enabled: open });
   const templates = tplData?.templates || [];
-  const tplHits = q ? templates.filter((t) => t.kind === "studio" && `${t.name} ${t.description} ${t.category} ${(t.tags || []).join(" ")}`.toLowerCase().includes(q)).slice(0, 12) : [];
-  const list = q ? ENTRIES.filter((e) => `${e.name} ${e.note} ${e.keywords}`.toLowerCase().includes(q)) : ENTRIES.filter((e) => e.cats.includes(cat));
+  const tplHits = matchTemplates(templates, q);
+  const list = matchEntries(q, cat);
 
   return (
     <dialog
@@ -282,7 +263,7 @@ function Details({ entry, brand, brands, setBrand, preset, custom, remotion, onB
   const [name, setName] = useState("");
   // A search like "reel" or "pinterest" is a format, not a topic; only a real description carries over
   const [about, setAbout] = useState(idea.trim().split(/\s+/).length >= 3 ? idea.trim() : "");
-  const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: () => api.get<SettingsData>("/api/settings"), staleTime: 60_000 });
+  const { data: settings } = useSettings({ staleTime: 60_000 });
   const [engine, setEngine] = useState("hyperframes");
   useEffect(() => {
     if (settings) setEngine(settings.studio.engine);
@@ -301,16 +282,16 @@ function Details({ entry, brand, brands, setBrand, preset, custom, remotion, onB
     setBusy(true);
     setError(null);
     try {
-      const r = await api.post<{ brand: string; id: string }>("/api/projects", { brand: brand.slug, format: entry.preset, name: name || entry.name, engine: video ? engine : "hyperframes", ...(custom ? { width: w, height: h } : {}), ...(entry.template ? { template: entry.template, topic: about.trim() || undefined } : {}) });
+      const r = await createProject({ brand: brand.slug, format: entry.preset, name: name || entry.name, engine: video ? engine : "hyperframes", ...(custom ? { width: w, height: h } : {}), ...(entry.template ? { template: entry.template, topic: about.trim() || undefined } : {}) });
       qc.invalidateQueries();
       if (about.trim())
-        await run("/api/claude", {
+        await run(() => askAgent({
           prompt: entry.template
             ? `projects/${r.brand}/${r.id} was created from the "${entry.name}" template. Keep its scene structure, but rewrite every scene's on-screen text${video ? " and voiceover line" : ""} for this topic in the brand's voice, using the scriptwriter agent: ${about.trim()}. Fill brief.md. ${video ? "Don't record the voiceover or render yet." : "Then render it."}`
             : `Write the ${entry.name.toLowerCase()} in projects/${r.brand}/${r.id}: fill brief.md, then write content.json with the scriptwriter agent (3 hook options in the brief first). Topic: ${about.trim()}. ${video ? "Don't record the voiceover or render yet." : "Then render it."}`,
           title: `Write · ${name || entry.name}`,
           meta: { brand: r.brand, project: r.id },
-        });
+        }));
       onDone();
       nav(`/projects/${r.brand}/${r.id}`);
     } catch (x) {
@@ -472,7 +453,7 @@ function IdeaStart({ brand, onDone }: { brand: BrandSummary; onDone: () => void 
         e.preventDefault();
         if (!idea.trim()) return;
         onDone();
-        nav("/claude", { state: { prompt: `For brand ${brand.slug}: ${idea.trim()}. Pick the right formats, create the projects and write the scripts. Don't record voiceovers or render yet; list the projects you made.` } });
+        nav("/claude", { state: { prompt: ideaPrompt(brand.slug, idea) } });
       }}
       className="max-w-[640px] space-y-5"
     >
@@ -496,43 +477,14 @@ function IdeaStart({ brand, onDone }: { brand: BrandSummary; onDone: () => void 
 }
 
 // ---------------------------------------------------------------- templates (studio-templates registry)
-export type Template = {
-  kind: "studio" | "external";
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  tags?: string[];
-  format?: string;
-  scenes?: Scene[];
-  engine?: string;
-  url?: string;
-};
-const LOOK: Record<string, Entry["look"]> = { reel: "phone", promo: "phone", landscape: "screen", carousel: "stack", post: "flat", square: "flat", story: "story" };
-const FORMAT_NAME: Record<string, string> = { reel: "Reels", promo: "Promos", landscape: "Video", carousel: "Carousels", post: "Posts", square: "Square", story: "Stories" };
 
-/** Placeholders shown in previews; the real values are filled from brand.json when the project is created */
-const preview = (s: Scene, b: BrandSummary): Scene => {
-  const v: Record<string, string> = { brand: b.name, product: b.name, cta: b.ctas?.[0] || "Follow for more", topic: "your topic", audience: "you", handle: `@${b.slug}` };
-  const f = (x: unknown): unknown => (typeof x === "string" ? x.replace(/\{\{(\w+)\}\}/g, (m, k) => v[k] ?? m) : Array.isArray(x) ? x.map(f) : x);
-  return Object.fromEntries(Object.entries(s).map(([k, x]) => [k, f(x)])) as Scene;
-};
 
-function toEntry(t: Template): Entry {
-  const first = t.scenes?.[0] || { type: "hook", text: t.name };
-  return { id: `tpl-${t.id}`, preset: t.format || "reel", name: t.name, note: t.description, cats: [], keywords: "", look: LOOK[t.format || "reel"] || "phone", sample: (b) => preview(first as Scene, b), template: t.id };
-}
 
 function TemplatesView({ templates, error, brand, presets, onPick, onDone }: { templates: Template[]; error: string | null; brand: BrandSummary; presets: Record<string, Meta["formats"][number]>; onPick: (e: Entry) => void; onDone: () => void }) {
   const [format, setFormat] = useState("");
   const [category, setCategory] = useState("");
   const nav = useNavigate();
-  const order = Object.keys(FORMAT_NAME);
-  const studio = templates.filter((t) => t.kind === "studio").sort((x, y) => order.indexOf(x.format!) - order.indexOf(y.format!));
-  const external = templates.filter((t) => t.kind === "external");
-  const formats = order.filter((f) => studio.some((t) => t.format === f));
-  const categories = [...new Set(studio.filter((t) => !format || t.format === format).map((t) => t.category))].sort();
-  const list = studio.filter((t) => (!format || t.format === format) && (!category || t.category === category));
+  const { studio, external, formats, categories, list } = groupTemplates(templates, format, category);
   if (!templates.length)
     return (
       <div className="max-w-[560px]">

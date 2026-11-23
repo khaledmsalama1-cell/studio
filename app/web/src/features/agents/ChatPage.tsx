@@ -1,120 +1,65 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Bot, Check, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, History, Mic, Palette, Plus, Radar, X } from "lucide-react";
-import { api, ago, type BrandSummary, type Meta, type ProjectSummary } from "@/shared/api";
+import type { BrandSummary } from "@/shared/api/types";
+import { ago } from "@/shared/format";
 import { useJob } from "@/features/jobs";
-import { useRun } from "@/shared/useRun";
+import { useRun } from "@/shared/hooks/useRun";
 import { useJobs } from "@/app/Layout";
 import { ChatEvents } from "./ChatEvents";
 import { ENTRIES, Thumb, type Entry } from "@/features/create";
 import { ErrorNote, cx } from "@/shared/ui/ui";
-import { useAgents, AGENT_SHORT, type AgentId } from "./useAgents";
+import { useAgents, AGENT_SHORT, type AgentId } from "./api";
+import { askAgent, useConversations } from "./api";
+import { useBrands } from "@/features/brands/api";
+import { useMeta } from "@/shared/api/queries";
+import { useProjects } from "@/features/projects/api";
+import type { Thread } from "./api";
+import { ASK, buildPrompt, chatTitle, STARTERS, threadOf, type Ctx } from "./model";
+import { useChatTabs } from "./useChatTabs";
 
-type Thread = { id: string; title: string; started: number; updated: number; status: string; sessionId: string | null; jobs: string[]; agent?: AgentId };
-type Tab = { key: string; thread?: string }; // thread = first job id, or the session id once known
-type Ctx = { kind: "brand" | "project"; id: string; label: string };
 
-const TABS_KEY = "studio-chat-tabs";
-const loadTabs = (): Tab[] => {
-  try {
-    const t = JSON.parse(localStorage.getItem(TABS_KEY) || "[]");
-    return Array.isArray(t) && t.length ? t : [{ key: "new-1" }];
-  } catch {
-    return [{ key: "new-1" }];
-  }
-};
 
-const STARTERS = (b: string) => [
-  { label: "Plan this month", text: `Use the content-calendar skill for brand ${b}: plan the next 4 weeks, 4 posts a week, balanced across the content pillars.` },
-  { label: "Campaign ideas", text: `Use the campaign skill for brand ${b}: give me 3–5 campaign concepts. Don't produce assets yet.` },
-  { label: "Three reels", text: `Use the short-video skill for brand ${b}: make 3 reels from the brand's content pillars. Write scripts, record voiceovers, build, check frames and render.` },
-  { label: "Competitor scan", text: `Use the social-research skill for brand ${b}: suggest 3 competitors on TikTok, research them and write insights.` },
-];
 
-// What each tile starts the prompt with; the person finishes the sentence
-const ASK: Record<string, string> = {
-  reel: "Make a reel about ",
-  promo: "Make a product promo video for ",
-  short: "Make a YouTube Short about ",
-  carousel: "Make a 6-slide carousel about ",
-  post: "Make a feed post about ",
-  square: "Make a square post about ",
-  quote: "Turn this into a quote card: ",
-  story: "Make story frames for ",
-  landscape: "Make a YouTube video about ",
-  "linkedin-video": "Make a LinkedIn video about ",
-  brand: "Help me create a new brand. Here's the idea: ",
-  research: "Research these accounts and tell me what works for them: ",
-};
 
 export default function Claude() {
   const location = useLocation() as { state?: { prompt?: string } };
   const qc = useQueryClient();
-  const { data: threads } = useQuery({ queryKey: ["conversations"], queryFn: () => api.get<Thread[]>("/api/conversations"), refetchInterval: 4000 });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
+  const { data: threads } = useConversations();
+  const { data: brands } = useBrands();
   const { jobs } = useJobs();
   const { run, error, pending } = useRun();
   const agents = useAgents();
 
-  const [tabs, setTabs] = useState<Tab[]>(loadTabs);
-  const [active, setActive] = useState(() => tabs[0].key);
+  const { tabs, tab, setActive, addTab, closeTab, attachThread, draft: text, setDraft: setText, clearDraft } = useChatTabs();
   const [brand, setBrand] = useState("");
   const [ctx, setCtx] = useState<Ctx[]>([]);
-  // Each tab keeps its own unsent draft
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const input = useRef<HTMLTextAreaElement>(null);
   const autoSent = useRef(false);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(TABS_KEY, JSON.stringify(tabs));
-    } catch {}
-  }, [tabs]);
   useEffect(() => {
     if (!brand && brands?.length) setBrand(brands[0].slug);
   }, [brands, brand]);
 
-  const threadOf = (t?: Tab) => (t?.thread ? threads?.find((x) => x.id === t.thread || x.jobs.includes(t.thread!)) : undefined);
-  const tab = tabs.find((t) => t.key === active) || tabs[0];
-  const thread = threadOf(tab);
+  const thread = threadOf(threads, tab);
   const agentId: AgentId = (thread?.agent as AgentId) || agents.activeId;
   const who = AGENT_SHORT[agentId];
   const busy = !!thread && jobs.some((j) => thread.jobs.includes(j.id) && j.status === "running");
   const brandObj = brands?.find((b) => b.slug === brand) || brands?.[0];
-  const text = drafts[tab.key] || "";
-  const setText = (v: string) => setDrafts((d) => ({ ...d, [tab.key]: v }));
-
-  const newTab = () => {
-    const key = `new-${Date.now()}`;
-    setTabs((t) => [...t, { key }]);
-    setActive(key);
-    setCtx([]);
-  };
-  const closeTab = (key: string) => {
-    const i = tabs.findIndex((x) => x.key === key);
-    const rest = tabs.filter((x) => x.key !== key);
-    const next = rest.length ? rest : [{ key: `new-${Date.now()}` }];
-    setTabs(next);
-    if (key === active) setActive(next[Math.max(0, i - 1)]?.key || next[0].key);
-  };
+  const newTab = () => (addTab(), setCtx([]));
   const openThread = (th: Thread) => {
-    const existing = tabs.find((t) => threadOf(t)?.id === th.id);
+    const existing = tabs.find((t) => threadOf(threads, t)?.id === th.id);
     if (existing) return setActive(existing.key);
-    const key = `t-${th.id}`;
-    setTabs((t) => [...t, { key, thread: th.id }]);
-    setActive(key);
+    addTab(th.id);
   };
 
   const send = async (prompt: string, tabKey = tab.key, existing = thread) => {
     if (!prompt.trim()) return;
-    const context = ctx.map((c) => (c.kind === "project" ? `(Project: projects/${c.id})` : `(Brand: brands/${c.id})`)).join("\n");
-    const full = [prompt.trim(), context].filter(Boolean).join("\n\n");
-    const job = await run("/api/claude", { prompt: full, sessionId: existing?.sessionId || undefined, title: prompt.trim().split("\n")[0].slice(0, 70), meta: { brand: brand || undefined } }, { openDock: false });
+    const job = await run(() => askAgent({ prompt: buildPrompt(prompt, ctx), sessionId: existing?.sessionId || undefined, title: chatTitle(prompt), meta: { brand: brand || undefined } }), { openDock: false });
     if (!job) return;
-    setDrafts((d) => ({ ...d, [tabKey]: "" }));
+    clearDraft(tabKey);
     setCtx([]);
-    if (!existing) setTabs((t) => t.map((x) => (x.key === tabKey ? { ...x, thread: job.id } : x)));
+    if (!existing) attachThread(tabKey, job.id);
     qc.invalidateQueries({ queryKey: ["conversations"] });
   };
   // A prompt handed over from Home or Create starts right away in a fresh tab
@@ -122,10 +67,7 @@ export default function Claude() {
     const p = location.state?.prompt;
     if (p && !autoSent.current) {
       autoSent.current = true;
-      const key = `new-${Date.now()}`;
-      setTabs((t) => [...t, { key }]);
-      setActive(key);
-      send(p, key, undefined);
+      send(p, addTab(), undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -149,7 +91,7 @@ export default function Claude() {
       <div className="mb-4 flex items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1">
           {tabs.map((t) => {
-            const th = threadOf(t);
+            const th = threadOf(threads, t);
             const on = t.key === tab.key;
             const live = !!th && jobs.some((j) => th.jobs.includes(j.id) && j.status === "running");
             return (
@@ -216,7 +158,7 @@ function Composer({ text, setText, onSend, busy, pending, inputRef, brands, bran
   brands: BrandSummary[]; brand: string; setBrand: (s: string) => void; ctx: Ctx[]; setCtx: (c: Ctx[]) => void; big: boolean; locked: boolean; who: string; picker: React.ReactNode;
 }) {
   const [menu, setMenu] = useState(false);
-  const { data: projects } = useQuery({ queryKey: ["projects", ""], queryFn: () => api.get<ProjectSummary[]>("/api/projects"), enabled: menu });
+  const { data: projects } = useProjects(undefined, { enabled: menu });
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menu) return;
@@ -383,7 +325,7 @@ const TOOLS = [
 ];
 
 function FormatRow({ brand, onPick }: { brand: BrandSummary; onPick: (id: string, name: string) => void }) {
-  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: () => api.get<Meta>("/api/meta") });
+  const { data: meta } = useMeta();
   const sizes = useMemo(() => Object.fromEntries((meta?.formats || []).map((f) => [f.id, f])), [meta]);
   const row = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState({ start: true, end: false });

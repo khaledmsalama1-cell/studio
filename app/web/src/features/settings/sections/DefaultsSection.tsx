@@ -1,23 +1,24 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { AudioLines, Clapperboard, Code2, Laptop, RefreshCw, Sparkles } from "lucide-react";
-import { type Meta, type SettingsData, type StudioDefaults, api } from "@/shared/api";
+import type { SettingsData, StudioDefaults } from "@/shared/api/types";
 import { Button } from "@/shared/ui/ui";
 import { Choice, Row, Rows, Section, Toggle } from "../controls";
 import type { Doctor, Saver, SectionId } from "../types";
+import { refreshRegistry, useRegistry } from "@/features/apps/api";
+import { useMeta } from "@/shared/api/queries";
+import { ago } from "@/shared/format";
 
 export const SIZES = [
   { id: "1x1", label: "Square", desc: "1080 × 1080, for feeds", w: 14, h: 14 },
   { id: "4x5", label: "Portrait", desc: "1080 × 1350, for the Instagram feed", w: 12, h: 15 },
   { id: "16x9", label: "Landscape", desc: "1920 × 1080, for YouTube and X", w: 18, h: 10 },
 ];
-export type Registry = Record<"apps" | "templates", { fetchedAt: string | null; count: number; syncing: boolean }>;
 
 export function DefaultsSection({ data, save, doctor, go }: { data: SettingsData; save: Saver; doctor?: Doctor; go: (s: SectionId) => void }) {
   const st = data.studio;
   const put = (next: Partial<StudioDefaults>) => save({ studio: next });
-  const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: () => api.get<Meta>("/api/meta") });
-  const reg = useQuery({ queryKey: ["registry"], queryFn: () => api.get<Registry>("/api/registry") });
+  const { data: meta } = useMeta();
+  const reg = useRegistry();
   const [syncing, setSyncing] = useState(false);
   const kokoro = doctor?.find((r) => r.label.startsWith("Local voice"))?.ok;
   const missing = (text: string, to: SectionId) => (
@@ -82,7 +83,7 @@ export function DefaultsSection({ data, save, doctor, go }: { data: SettingsData
               busy={syncing || reg.data?.apps.syncing}
               onClick={async () => {
                 setSyncing(true);
-                await api.post("/api/registry/refresh", {}).catch(() => {});
+                await refreshRegistry().catch(() => {});
                 await reg.refetch();
                 setSyncing(false);
               }}
@@ -100,8 +101,4 @@ export function DefaultsSection({ data, save, doctor, go }: { data: SettingsData
       </Section>
     </>
   );
-}
-export function ago(iso: string) {
-  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
 }

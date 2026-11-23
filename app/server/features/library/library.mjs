@@ -10,6 +10,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { ROOT, readJSON, fileUrl } from "../../core/paths.mjs";
 import { saveSettings } from "../../core/settings.mjs";
+import { bad, need } from "../../core/http.mjs";
 
 const run = promisify(execFile);
 const LIB = path.join(ROOT, "library");
@@ -17,7 +18,6 @@ const SAMPLES = path.join(LIB, "samples");
 const AUDIO = /\.(mp3|wav|m4a|aac|ogg|flac)$/i;
 const VIDEO = /\.(mp4|webm|mov)$/i;
 const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
-const MIME = { ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4", ".aac": "audio/aac", ".ogg": "audio/ogg", ".flac": "audio/flac", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif" };
 const kind = (f) => (AUDIO.test(f) ? "audio" : VIDEO.test(f) ? "video" : IMAGE.test(f) ? "image" : null);
 
 function env() {
@@ -146,36 +146,6 @@ export async function voiceSample({ provider, voiceId, text, modelId, settings }
   return { url: fileUrl(out), cached: false, chars: line.length };
 }
 
-export async function listVoices() {
-  const kokoro = [
-    ["af_heart", "Heart", "American, female, warm"],
-    ["af_nova", "Nova", "American, female, bright"],
-    ["af_sky", "Sky", "American, female, light"],
-    ["am_adam", "Adam", "American, male, deep"],
-    ["am_michael", "Michael", "American, male, even"],
-    ["bf_emma", "Emma", "British, female"],
-    ["bf_isabella", "Isabella", "British, female"],
-    ["bm_george", "George", "British, male"],
-    ["bm_lewis", "Lewis", "British, male"],
-  ].map(([voice_id, name, description]) => ({ voice_id, name, description, provider: "kokoro", category: "local" }));
-  const key = env().ELEVENLABS_API_KEY;
-  if (!key) return { elevenlabs: null, kokoro };
-  const res = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": key } });
-  if (!res.ok) return { elevenlabs: { error: `ElevenLabs ${res.status}` }, kokoro };
-  const data = await res.json();
-  return {
-    elevenlabs: data.voices.map((v) => ({
-      voice_id: v.voice_id,
-      name: v.name,
-      category: v.category, // premade | cloned | generated | professional
-      labels: v.labels || {},
-      description: v.description || "",
-      preview_url: v.preview_url || null,
-      provider: "elevenlabs",
-    })),
-    kokoro,
-  };
-}
 
 /** Which brands use which voice, so the Library can say "Narrator for Ember & Oak". */
 export function voiceUsage() {
@@ -188,58 +158,38 @@ export function voiceUsage() {
   return usage;
 }
 
-export function registerLibrary(app, { need, bad }) {
-  app.get("/api/library", (c) => c.json({ items: listMedia(), folders: mediaFolders() }));
-  app.get("/api/library/voices", async (c) => c.json({ ...(await listVoices()), usage: voiceUsage() }));
-  app.post("/api/library/sample", async (c) => c.json(await voiceSample(await c.req.json())));
-
-  app.post("/api/library/upload", async (c) => {
-    const body = await c.req.parseBody({ all: true });
-    const files = [body.file].flat().filter((f) => f && typeof f !== "string");
-    need(files.length, "Attach at least one file");
-    const saved = [];
-    for (const f of files) {
-      const name = path.basename(f.name).replace(/[^\w.\-]+/g, "-");
-      const k = kind(name);
-      need(k, `${name}: only audio, video and images`);
-      const dest = path.join(LIB, k === "audio" ? "audio" : k === "video" ? "video" : "images", name);
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, Buffer.from(await f.arrayBuffer()));
-      saved.push(path.relative(ROOT, dest));
-    }
-    return c.json({ saved });
-  });
-
-  app.put("/api/library/folders", async (c) => {
-    const { folders } = await c.req.json();
-    need(Array.isArray(folders), "folders must be a list");
-    const clean = [];
-    for (const raw of folders) {
-      const f = path.resolve(String(raw).replace(/^~(?=$|\/)/, process.env.HOME || "~"));
-      need(fs.existsSync(f) && fs.statSync(f).isDirectory(), `Not a folder: ${raw}`);
-      need(f !== "/" && f !== process.env.HOME, "Pick a specific folder, not your whole home or disk");
-      clean.push(f);
-    }
-    saveSettings({ mediaFolders: [...new Set(clean)] });
-    return c.json({ folders: mediaFolders() });
-  });
-
-  // Media from added folders: audio/video/images only, never outside the folder
-  app.get("/media/:i/*", (c) => {
-    const folder = mediaFolders()[Number(c.req.param("i"))];
-    if (!folder) throw bad("Folder not found", 404);
-    const rel = decodeURIComponent(c.req.path.split("/").slice(3).join("/"));
-    const abs = path.resolve(folder, rel);
-    if (!abs.startsWith(folder + path.sep) || !kind(abs) || !fs.existsSync(abs)) throw bad("Not found", 404);
-    const size = fs.statSync(abs).size;
-    const headers = { "content-type": MIME[path.extname(abs).toLowerCase()], "accept-ranges": "bytes", "cache-control": "no-cache" };
-    const range = c.req.header("range")?.match(/bytes=(\d*)-(\d*)/);
-    if (range) {
-      const start = range[1] ? Number(range[1]) : 0;
-      const end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
-      return new Response(fs.createReadStream(abs, { start, end }), { status: 206, headers: { ...headers, "content-range": `bytes ${start}-${end}/${size}`, "content-length": String(end - start + 1) } });
-    }
-    return new Response(fs.createReadStream(abs), { headers: { ...headers, "content-length": String(size) } });
+/** Save uploaded files ({ name, bytes }) into library/audio, video or images; returns their paths */
+export function importMedia(files) {
+  need(files.length, "Attach at least one file");
+  return files.map((f) => {
+    const name = path.basename(f.name).replace(/[^\w.\-]+/g, "-");
+    const k = kind(name);
+    need(k, `${name}: only audio, video and images`);
+    const dest = path.join(LIB, k === "audio" ? "audio" : k === "video" ? "video" : "images", name);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, f.bytes);
+    return path.relative(ROOT, dest);
   });
 }
 
+/** Replace the list of outside folders the Library shows; each must be a real, specific folder */
+export function setMediaFolders(folders) {
+  need(Array.isArray(folders), "folders must be a list");
+  const clean = folders.map((raw) => {
+    const f = path.resolve(String(raw).replace(/^~(?=$|\/)/, process.env.HOME || "~"));
+    need(fs.existsSync(f) && fs.statSync(f).isDirectory(), `Not a folder: ${raw}`);
+    need(f !== "/" && f !== process.env.HOME, "Pick a specific folder, not your whole home or disk");
+    return f;
+  });
+  saveSettings({ mediaFolders: [...new Set(clean)] });
+  return mediaFolders();
+}
+
+/** A media file inside an added folder: audio, video or images only, never outside the folder */
+export function mediaFilePath(folderIndex, rel) {
+  const folder = mediaFolders()[folderIndex];
+  if (!folder) throw bad("Folder not found", 404);
+  const abs = path.resolve(folder, rel);
+  if (!abs.startsWith(folder + path.sep) || !kind(abs) || !fs.existsSync(abs)) throw bad("Not found", 404);
+  return abs;
+}

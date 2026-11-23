@@ -1,48 +1,16 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { Link } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ChevronRight, ExternalLink, FolderOpen, Link2, Plug, Search, Trash2, X } from "lucide-react";
-import { api } from "@/shared/api";
-import { useRun } from "@/shared/useRun";
+import { useRun } from "@/shared/hooks/useRun";
 import { useJobs } from "@/app/Layout";
 import { Button, Dialog, ErrorNote, Field, Input, cx } from "@/shared/ui/ui";
+import { addAppFromLink, connectApp, installApp, refreshRegistry, removeApp, setAppFolder, useApps, useRegistry } from "./api";
+import type { App, Source } from "./api";
+import { filterApps } from "./model";
+import { useCategoryName } from "./useCategoryName";
 
-type App = {
-  id: string;
-  name: string;
-  category: string;
-  color: string;
-  tagline?: string;
-  description: string;
-  use?: string;
-  links?: Record<string, string>;
-  builtin?: boolean;
-  featured?: boolean;
-  connector?: boolean;
-  folder?: boolean;
-  needs?: string[];
-  keys?: string[];
-  mcp?: { name: string; oauth?: boolean };
-  install?: { type: string };
-  installed: boolean;
-  keysSet: Record<string, boolean>;
-  mcpAdded: boolean;
-  folderPath: string | null;
-  skills?: string[];
-  custom?: boolean;
-  kind?: string; // custom: skills | mcp; registry: open-source | service | desktop | skill | mcp | cli
-  pricing?: string;
-  license?: string;
-  registry?: boolean;
-  linkOnly?: boolean;
-  source?: string;
-  url?: string;
-};
-type AppsResp = { categories: [string, string][]; apps: App[]; custom: App[] };
 
-// Category names come from the registry (or the local catalogue); kept here for components outside Apps()
-let CATEGORY: Record<string, string> = {};
-const catName = (id: string) => CATEGORY[id] || id.replace(/-/g, " ");
 
 /** App mark: a solid tile in the app's colour with its initials */
 function Mark({ app, size = 44 }: { app: Pick<App, "name" | "color">; size?: number }) {
@@ -57,7 +25,7 @@ function Mark({ app, size = 44 }: { app: Pick<App, "name" | "color">; size?: num
 const state = (a: App) => (a.builtin ? "Built in" : a.installed ? (a.connector ? "Connected" : a.folder ? "Connected" : "Installed") : a.connector ? "Connect in Claude" : a.install || a.keys || a.mcp || a.folder ? "Add" : "Info");
 
 export default function Apps() {
-  const { data } = useQuery({ queryKey: ["apps"], queryFn: () => api.get<AppsResp>("/api/apps") });
+  const { data } = useApps();
   const { jobs } = useJobs();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
@@ -72,10 +40,9 @@ export default function Apps() {
   }, [running, qc]);
 
   const all = useMemo(() => [...(data?.apps || []), ...(data?.custom || [])], [data]);
-  CATEGORY = Object.fromEntries(data?.categories || []);
   const featured = all.find((a) => a.featured && !a.installed) || all.find((a) => a.featured);
-  const t = q.trim().toLowerCase();
-  const filtered = t ? all.filter((a) => `${a.name} ${a.tagline} ${a.description} ${a.category}`.toLowerCase().includes(t)) : cat === "for-you" ? null : cat === "installed" ? all.filter((a) => a.installed || a.builtin) : all.filter((a) => a.category === cat);
+  const searching = !!q.trim();
+  const filtered = filterApps(all, q, cat);
   const picks = all.filter((a) => a.featured);
   const current = open && all.find((a) => a.id === open.id);
 
@@ -95,7 +62,7 @@ export default function Apps() {
         </label>
         <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
           {[["for-you", "For you"], ["installed", "Installed"], ...(data?.categories || [])].map(([id, label]) => (
-            <button key={id} onClick={() => (setCat(id), setQ(""))} className={cx("h-10 flex-none rounded-full border px-4 text-body whitespace-nowrap transition-colors duration-150", cat === id && !t ? "border-ink bg-raised font-medium" : "border-line-soft bg-surface text-ink-2 hover:border-ink-3/50 hover:text-ink")}>
+            <button key={id} onClick={() => (setCat(id), setQ(""))} className={cx("h-10 flex-none rounded-full border px-4 text-body whitespace-nowrap transition-colors duration-150", cat === id && !searching ? "border-ink bg-raised font-medium" : "border-line-soft bg-surface text-ink-2 hover:border-ink-3/50 hover:text-ink")}>
               {label}
             </button>
           ))}
@@ -109,7 +76,7 @@ export default function Apps() {
 
       {filtered ? (
         <section>
-          <h2 className="mb-4 text-xl">{t ? `Results for “${q}”` : cat === "installed" ? "Installed" : data?.categories.find(([id]) => id === cat)?.[1]}</h2>
+          <h2 className="mb-4 text-xl">{searching ? `Results for “${q}”` : cat === "installed" ? "Installed" : data?.categories.find(([id]) => id === cat)?.[1]}</h2>
           {filtered.length ? (
             <AppGrid apps={filtered} onOpen={setOpen} />
           ) : (
@@ -152,6 +119,7 @@ export default function Apps() {
 
 // ---------------------------------------------------------------- hero + picks
 function Hero({ app, onOpen }: { app: App; onOpen: () => void }) {
+  const catName = useCategoryName();
   return (
     <section className="mb-8 grid overflow-hidden rounded-[20px] border border-line-soft bg-surface md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
       <div className="flex flex-col justify-center gap-4 p-7 md:p-10">
@@ -188,6 +156,7 @@ function Hero({ app, onOpen }: { app: App; onOpen: () => void }) {
 }
 
 function PicksRow({ apps, onOpen }: { apps: App[]; onOpen: (a: App) => void }) {
+  const catName = useCategoryName();
   const row = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState({ start: true, end: false });
   const update = () => {
@@ -262,6 +231,7 @@ function StatusPill({ app }: { app: App }) {
 
 // ---------------------------------------------------------------- app detail
 function AppDialog({ app, all, onClose }: { app: App | null; all: App[]; onClose: () => void }) {
+  const catName = useCategoryName();
   const qc = useQueryClient();
   const { run, error: runErr } = useRun();
   const { jobs } = useJobs();
@@ -341,7 +311,7 @@ function AppDialog({ app, all, onClose }: { app: App | null; all: App[]; onClose
             <Field label="Export folder" hint="Files the app saves here appear in the Library and can be used in projects">
               <div className="flex gap-2">
                 <Input value={folder} onChange={(e) => setFolder(e.target.value)} placeholder={`~/Documents/${app.name} exports`} className="font-mono text-caption" />
-                <Button icon={<FolderOpen className="size-4" />} busy={busy === "folder"} disabled={!folder.trim()} onClick={() => act("folder", () => api.post(`/api/apps/${app.id}/folder`, { folder }))}>
+                <Button icon={<FolderOpen className="size-4" />} busy={busy === "folder"} disabled={!folder.trim()} onClick={() => act("folder", () => setAppFolder(app.id, { folder }))}>
                   {app.folderPath ? "Update" : "Connect"}
                 </Button>
               </div>
@@ -368,7 +338,7 @@ function AppDialog({ app, all, onClose }: { app: App | null; all: App[]; onClose
             ) : (
               <>
                 {app.install && !app.installed && (
-                  <Button variant="primary" busy={installing} disabled={missing.length > 0} onClick={() => run(`/api/apps/${app.id}/install`)}>
+                  <Button variant="primary" busy={installing} disabled={missing.length > 0} onClick={() => run(() => installApp(app.id))}>
                     {installing ? "Installing…" : "Install"}
                   </Button>
                 )}
@@ -378,13 +348,13 @@ function AppDialog({ app, all, onClose }: { app: App | null; all: App[]; onClose
                     icon={<Plug className="size-4" />}
                     busy={busy === "connect"}
                     disabled={!!app.keys?.length && !allKeysSet && !(app.keys || []).every((k) => keys[k]?.trim() || app.keysSet?.[k])}
-                    onClick={() => act("connect", () => api.post(`/api/apps/${app.id}/connect`, { keys, mcp: true }))}
+                    onClick={() => act("connect", () => connectApp(app.id, { keys, mcp: true }))}
                   >
                     {app.mcp ? (app.mcpAdded ? "Save" : "Connect") : "Save key"}
                   </Button>
                 )}
                 {(app.installed || app.mcpAdded || app.custom) && !app.builtin && (app.mcp || app.install?.type === "skills-repo" || app.folder || app.custom) && (
-                  <Button variant="danger" icon={<Trash2 className="size-4" />} busy={busy === "remove"} onClick={() => act("remove", async () => (await api.post(`/api/apps/${app.id}/remove`), app.custom && onClose()))}>
+                  <Button variant="danger" icon={<Trash2 className="size-4" />} busy={busy === "remove"} onClick={() => act("remove", async () => (await removeApp(app.id), app.custom && onClose()))}>
                     Remove
                   </Button>
                 )}
@@ -478,7 +448,7 @@ function AddLinkDialog({ open, onClose }: { open: boolean; onClose: () => void }
               setBusy(true);
               setErr(null);
               try {
-                const r = await api.post<{ added: { name: string }; job?: { id: string } }>("/api/apps/custom", { input, token: token || undefined });
+                const r = await addAppFromLink({ input, token: token || undefined });
                 if (r.job) openJob(r.job.id);
                 setDone(r.job ? `Adding ${r.added.name}. Progress is in the dock below` : `Added ${r.added.name} to .mcp.json`);
                 setInput("");
@@ -512,10 +482,9 @@ function AddLinkDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
 
 // ---------------------------------------------------------------- registry sources
-type Source = { repo: string; url: string; fetchedAt: string | null; count: number; error: string | null; syncing: boolean };
 function Sources() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["registry"], queryFn: () => api.get<{ apps: Source; templates: Source }>("/api/registry"), refetchInterval: (q) => (q.state.data && (q.state.data.apps.syncing || q.state.data.templates.syncing) ? 1500 : false) });
+  const { data } = useRegistry();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<unknown>(null);
   if (!data) return null;
@@ -541,7 +510,7 @@ function Sources() {
           setBusy(true);
           setErr(null);
           try {
-            await api.post("/api/registry/refresh");
+            await refreshRegistry();
             qc.invalidateQueries({ queryKey: ["registry"] });
             qc.invalidateQueries({ queryKey: ["apps"] });
             qc.invalidateQueries({ queryKey: ["templates"] });

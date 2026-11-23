@@ -1,10 +1,10 @@
 import { Link } from "react-router";
-import { ago, type BrandSummary, type ProjectSummary } from "@/shared/api";
+import type { BrandSummary, ProjectSummary } from "@/shared/api/types";
+import { ago } from "@/shared/format";
 import { SceneFrame, Stage } from "@/shared/scene/ScenePreview";
 import { Badge } from "@/shared/ui/ui";
+import { FORMAT_LABEL, STATIC } from "./model";
 
-export const STATIC = new Set(["carousel", "post", "square", "story"]);
-export const FORMAT_LABEL: Record<string, string> = { reel: "Reel", promo: "Promo", landscape: "Video", carousel: "Carousel", post: "Post", square: "Square post", story: "Story" };
 
 /** A project as its own first frame (or rendered thumbnail) on a quiet tile: name, brand mark, type, last edit. */
 export function ProjectTile({ p, brand }: { p: ProjectSummary; brand?: BrandSummary }) {

@@ -1,20 +1,22 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Mic, RefreshCw, Sparkles } from "lucide-react";
-import { api, ago, fmt, pct, type Post, type ResearchDetail as RD } from "@/shared/api";
-import { useRun } from "@/shared/useRun";
+import type { Post, ResearchDetail as RD } from "@/shared/api/types";
+import { ago, fmt, pct } from "@/shared/format";
+import { useRun } from "@/shared/hooks/useRun";
 import { BarChart } from "@/shared/ui/BarChart";
 import { Markdown } from "@/shared/ui/Markdown";
 import { Button, Empty, ErrorNote, Panel, Select, Tabs, cx } from "@/shared/ui/ui";
-import { PLATFORM_LABEL } from "./ResearchPage";
+import { PLATFORM_LABEL } from "./model";
+import { askAgent } from "@/features/agents/api";
+import { extractHooks, startResearch, useResearch } from "./api";
+import { DAY_ORDER, rankPosts } from "./model";
 
 type Tab = "overview" | "posts" | "hooks" | "insights";
-const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export default function ResearchDetail() {
   const { brand = "", key = "" } = useParams();
-  const { data, error } = useQuery({ queryKey: ["research", brand, key], queryFn: () => api.get<RD>(`/api/research/${brand}/${key}`) });
+  const { data, error } = useResearch(brand, key);
   const [tab, setTab] = useState<Tab>("overview");
   const [top, setTop] = useState(5);
   const { run, running, error: runErr } = useRun();
@@ -43,7 +45,7 @@ export default function ResearchDetail() {
           {profile.bio && <p className="mt-2 max-w-[70ch] text-body text-ink-3">{profile.bio}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button icon={<RefreshCw className="size-4" />} busy={!!running("research", { brand })} onClick={() => run("/api/research", { platform: profile.platform, target: profile.handle?.startsWith("post") ? profile.url : profile.handle, brand: brand === "_" ? undefined : brand, limit: Math.max(30, posts.length) })}>
+          <Button icon={<RefreshCw className="size-4" />} busy={!!running("research", { brand })} onClick={() => run(() => startResearch({ platform: profile.platform, target: profile.handle?.startsWith("post") ? profile.url : profile.handle, brand: brand === "_" ? undefined : brand, limit: Math.max(30, posts.length) }))}>
             Refresh
           </Button>
           <Button
@@ -52,11 +54,11 @@ export default function ResearchDetail() {
             busy={!!running("claude", { brand, research: key })}
             onClick={() => {
               setTab("insights");
-              run("/api/claude", {
+              run(() => askAgent({
                 prompt: `Use the social-research skill, step 4. Read ${data.dir}/report.md${data.hooks ? `, ${data.dir}/hooks.md (and look at the frame images)` : ""} and summary.json${brand !== "_" ? `, plus brands/${brand}/brand.json and any other reports in brands/${brand}/research/social/` : ""}. Write ${brand !== "_" ? `brands/${brand}/research/social/insights.md` : `${data.dir}/insights.md`} with patterns backed by numbers, hook templates, recommendations and 5 content ideas.`,
                 title: `Insights · ${profile.name}`,
                 meta,
-              });
+              }));
             }}
           >
             Write insights with Claude
@@ -108,7 +110,7 @@ export default function ResearchDetail() {
                       <option key={n} value={n}>Top {n}</option>
                     ))}
                   </Select>
-                  <Button variant="primary" icon={<Mic className="size-4" />} busy={!!running("hooks", meta)} onClick={() => run(`/api/research/${brand}/${key}/hooks`, { top })}>
+                  <Button variant="primary" icon={<Mic className="size-4" />} busy={!!running("hooks", meta)} onClick={() => run(() => extractHooks(brand, key, { top }))}>
                     Get hooks
                   </Button>
                 </div>
@@ -179,10 +181,7 @@ function Overview({ data }: { data: RD }) {
 
 function Posts({ posts, medianViews }: { posts: Post[]; medianViews: number | null }) {
   const [sort, setSort] = useState<"score" | "date" | "comments">("score");
-  const rows = useMemo(() => {
-    const score = (p: Post) => (medianViews && p.views != null ? p.views / medianViews : 0);
-    return [...posts].sort((a, b) => (sort === "date" ? (b.posted_at || "").localeCompare(a.posted_at || "") : sort === "comments" ? (b.comments ?? 0) - (a.comments ?? 0) : score(b) - score(a))).map((p) => ({ ...p, score: score(p) }));
-  }, [posts, sort, medianViews]);
+  const rows = useMemo(() => rankPosts(posts, sort, medianViews), [posts, sort, medianViews]);
   return (
     <div>
       <div className="mb-3 flex items-center gap-2 text-caption">

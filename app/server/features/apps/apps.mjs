@@ -1,4 +1,4 @@
-// Apps: tools, skills and connectors you can add to the studio.
+// Apps service: tools, skills and connectors you can add to the studio.
 // The catalogue lives in apps/catalog.json. Installing never runs anything that isn't written in the catalogue
 // (or, for links, a fixed skills/MCP recipe), and every change is reversible from the same page.
 import fs from "node:fs";
@@ -9,6 +9,7 @@ import { ROOT, DATA, readJSON } from "../../core/paths.mjs";
 import { startJob, waitFor } from "../../core/jobs.mjs";
 import { saveSettings } from "../../core/settings.mjs";
 import { cached } from "../registry/registry.mjs";
+import { bad, need } from "../../core/http.mjs";
 
 const CATALOG = path.join(ROOT, "apps/catalog.json");
 const STATE = path.join(DATA, "apps.json");
@@ -150,126 +151,127 @@ function writeInstalledDoc() {
 
 const find = (id) => catalog().apps.find((a) => a.id === id);
 
-export function registerApps(app, { need, bad }) {
-  app.get("/api/apps", (c) => c.json(listApps()));
-
-  // Install from the catalogue recipe (runs as a job)
-  app.post("/api/apps/:id/install", async (c) => {
-    const a = find(c.req.param("id"));
-    if (!a?.install) throw bad("Nothing to install for this app", 400);
-    for (const dep of a.needs || []) need(listApps().apps.find((x) => x.id === dep)?.installed, `Install ${find(dep)?.name || dep} first`);
-    const i = a.install;
-    const job =
-      i.type === "npm"
-        ? startJob({ kind: "install", title: `Install · ${a.name}`, cmd: "npm", args: ["run", i.script], cwd: ROOT, meta: { app: a.id } })
-        : i.type === "skills-repo"
-          ? startJob({ kind: "install", title: `Add skills · ${a.name}`, cmd: node, args: [path.join(ROOT, "scripts/add-skills.mjs"), i.repo, "--force"], cwd: ROOT, meta: { app: a.id } })
-          : startJob({ kind: "install", title: `Install · ${a.name}`, cmd: i.cmd, args: i.args, cwd: ROOT, meta: { app: a.id } });
-    waitFor(job).then((j) => {
-      if (j.status === "done") {
-        const s = state();
-        s.installed[a.id] = Date.now();
-        saveState(s);
-      }
-      writeInstalledDoc();
-    });
-    return c.json({ job: { id: job.id, title: job.title, status: job.status } });
-  });
-
-  // Save keys and/or add the MCP connector
-  app.post("/api/apps/:id/connect", async (c) => {
-    const a = find(c.req.param("id"));
-    if (!a) throw bad("Unknown app", 404);
-    const { keys = {}, mcp } = await c.req.json();
-    const allowed = new Set(a.keys || []);
-    const values = Object.fromEntries(Object.entries(keys).filter(([k, v]) => allowed.has(k) && String(v).trim()));
-    if (Object.keys(values).length) writeEnv(values);
-    if (mcp && a.mcp) setMcp(a.mcp.name, a.mcp.config);
-    writeInstalledDoc();
-    return c.json(listApps());
-  });
-
-  app.post("/api/apps/:id/folder", async (c) => {
-    const a = find(c.req.param("id"));
-    need(a?.folder, "This app doesn't use a folder");
-    const { folder } = await c.req.json();
-    const f = path.resolve(String(folder || "").replace(/^~(?=$|\/)/, os.homedir()));
-    need(fs.existsSync(f) && fs.statSync(f).isDirectory(), `Not a folder: ${folder}`);
-    need(f !== "/" && f !== os.homedir(), "Pick the app's export folder, not your whole home folder");
-    const s = state();
-    s.folders[a.id] = f;
-    saveState(s);
-    const settings = readJSON(path.join(DATA, "settings.json"), {});
-    saveSettings({ mediaFolders: [...new Set([...(settings.mediaFolders || []), f])] });
-    writeInstalledDoc();
-    return c.json(listApps());
-  });
-
-  app.post("/api/apps/:id/remove", (c) => {
-    const id = c.req.param("id");
-    const s = state();
-    const a = find(id);
-    const customApp = s.custom.find((x) => x.id === id);
-    if (a?.mcp) setMcp(a.mcp.name, null);
-    if (a?.install?.type === "skills-repo") execFileSync(node, [path.join(ROOT, "scripts/add-skills.mjs"), a.install.repo, "--remove"], { cwd: ROOT });
-    if (a?.folder && s.folders[id]) {
-      const settings = readJSON(path.join(DATA, "settings.json"), {});
-      saveSettings({ mediaFolders: (settings.mediaFolders || []).filter((f) => f !== s.folders[id]) });
-      delete s.folders[id];
-    }
-    if (customApp) {
-      if (customApp.kind === "skills") execFileSync(node, [path.join(ROOT, "scripts/add-skills.mjs"), customApp.source, "--remove"], { cwd: ROOT });
-      else setMcp(customApp.name, null);
-      s.custom = s.custom.filter((x) => x.id !== id);
-    }
-    delete s.installed[id];
-    saveState(s);
-    writeInstalledDoc();
-    return c.json(listApps());
-  });
-
-  // Add from a link: GitHub repo of skills, a remote MCP URL, or an MCP package
-  app.post("/api/apps/custom", async (c) => {
-    const { input, name: givenName, token } = await c.req.json();
-    const raw = String(input || "").trim();
-    need(raw, "Paste a link or package name");
-    const s = state();
-    const gh = raw.match(/^(?:https?:\/\/github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:\/tree\/.*)?\/?$/);
-    const slug = (x) => x.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
-
-    if (gh && (raw.includes("github.com") || /^[\w.-]+\/[\w.-]+$/.test(raw))) {
-      const source = `${gh[1]}/${gh[2]}`;
-      const entry = { id: `gh-${slug(source)}`, kind: "skills", name: givenName || gh[2], source, url: `https://github.com/${source}`, description: `Skills from ${source}` };
-      s.custom = [...s.custom.filter((x) => x.id !== entry.id), entry];
+// ---------------------------------------------------------------- actions
+/** Install an app from its catalogue recipe (a job); records it as installed when the job succeeds */
+export function installApp(id) {
+  const a = find(id);
+  if (!a?.install) throw bad("Nothing to install for this app", 400);
+  for (const dep of a.needs || []) need(listApps().apps.find((x) => x.id === dep)?.installed, `Install ${find(dep)?.name || dep} first`);
+  const i = a.install;
+  const meta = { app: a.id };
+  const job =
+    i.type === "npm"
+      ? startJob({ kind: "install", title: `Install · ${a.name}`, cmd: "npm", args: ["run", i.script], cwd: ROOT, meta })
+      : i.type === "skills-repo"
+        ? startJob({ kind: "install", title: `Add skills · ${a.name}`, cmd: node, args: [path.join(ROOT, "scripts/add-skills.mjs"), i.repo, "--force"], cwd: ROOT, meta })
+        : startJob({ kind: "install", title: `Install · ${a.name}`, cmd: i.cmd, args: i.args, cwd: ROOT, meta });
+  waitFor(job).then((j) => {
+    if (j.status === "done") {
+      const s = state();
+      s.installed[a.id] = Date.now();
       saveState(s);
-      const job = startJob({ kind: "install", title: `Add skills · ${source}`, cmd: node, args: [path.join(ROOT, "scripts/add-skills.mjs"), raw, "--force"], cwd: ROOT, meta: { app: entry.id } });
-      waitFor(job).then(writeInstalledDoc);
-      return c.json({ added: entry, job: { id: job.id, title: job.title, status: job.status } });
     }
-
-    let entry;
-    if (/^https?:\/\//.test(raw)) {
-      const u = new URL(raw);
-      const name = slug(givenName || u.hostname.replace(/^(www|mcp|api)\./, "").split(".")[0]);
-      const config = { type: /\/sse\/?$/.test(u.pathname) ? "sse" : "http", url: raw };
-      if (token) {
-        const key = `${name.toUpperCase().replace(/-/g, "_")}_TOKEN`;
-        writeEnv({ [key]: token });
-        config.headers = { Authorization: `Bearer \${${key}}` };
-      }
-      entry = { id: `mcp-${name}`, kind: "mcp", name, url: raw, description: `MCP connector at ${u.host}` };
-      setMcp(name, config);
-    } else if (/^(uvx\s+)?[@\w./-]+$/.test(raw)) {
-      const uvx = raw.startsWith("uvx ");
-      const pkg = raw.replace(/^uvx\s+/, "");
-      const name = slug(givenName || pkg.split("/").pop().replace(/-?mcp-?(server)?/g, "") || pkg);
-      entry = { id: `mcp-${name}`, kind: "mcp", name, package: pkg, description: `MCP server from ${uvx ? "PyPI" : "npm"}: ${pkg}` };
-      setMcp(name, uvx ? { command: "uvx", args: [pkg] } : { command: "npx", args: ["-y", pkg] });
-    } else throw bad("Paste a GitHub repo (owner/repo), an MCP URL (https://…), or an MCP package name", 400);
-
-    s.custom = [...s.custom.filter((x) => x.id !== entry.id), entry];
-    saveState(s);
     writeInstalledDoc();
-    return c.json({ added: entry });
   });
+  return job;
+}
+
+/** Save an app's keys (only the ones it declares) and/or add its MCP connector */
+export function connectApp(id, { keys = {}, mcp }) {
+  const a = find(id);
+  if (!a) throw bad("Unknown app", 404);
+  const allowed = new Set(a.keys || []);
+  const values = Object.fromEntries(Object.entries(keys).filter(([k, v]) => allowed.has(k) && String(v).trim()));
+  if (Object.keys(values).length) writeEnv(values);
+  if (mcp && a.mcp) setMcp(a.mcp.name, a.mcp.config);
+  writeInstalledDoc();
+}
+
+/** Connect an app's export folder to the Library */
+export function setAppFolder(id, folder) {
+  const a = find(id);
+  need(a?.folder, "This app doesn't use a folder");
+  const f = path.resolve(String(folder || "").replace(/^~(?=$|\/)/, os.homedir()));
+  need(fs.existsSync(f) && fs.statSync(f).isDirectory(), `Not a folder: ${folder}`);
+  need(f !== "/" && f !== os.homedir(), "Pick the app's export folder, not your whole home folder");
+  const s = state();
+  s.folders[a.id] = f;
+  saveState(s);
+  const settings = readJSON(path.join(DATA, "settings.json"), {});
+  saveSettings({ mediaFolders: [...new Set([...(settings.mediaFolders || []), f])] });
+  writeInstalledDoc();
+}
+
+/** Undo everything an app added: connector, skills, folder, or the custom entry itself */
+export function removeApp(id) {
+  const s = state();
+  const a = find(id);
+  const customApp = s.custom.find((x) => x.id === id);
+  const removeSkills = (repo) => execFileSync(node, [path.join(ROOT, "scripts/add-skills.mjs"), repo, "--remove"], { cwd: ROOT });
+  if (a?.mcp) setMcp(a.mcp.name, null);
+  if (a?.install?.type === "skills-repo") removeSkills(a.install.repo);
+  if (a?.folder && s.folders[id]) {
+    const settings = readJSON(path.join(DATA, "settings.json"), {});
+    saveSettings({ mediaFolders: (settings.mediaFolders || []).filter((f) => f !== s.folders[id]) });
+    delete s.folders[id];
+  }
+  if (customApp) {
+    if (customApp.kind === "skills") removeSkills(customApp.source);
+    else setMcp(customApp.name, null);
+    s.custom = s.custom.filter((x) => x.id !== id);
+  }
+  delete s.installed[id];
+  saveState(s);
+  writeInstalledDoc();
+}
+
+const linkSlug = (x) => x.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+/**
+ * What a pasted link is: a GitHub repo of skills, a remote MCP URL, or an MCP package (npm, or PyPI with "uvx ").
+ * Returns the app entry to record and, for MCP, the connector config; null if it's none of these.
+ */
+export function parseAppLink(raw, givenName) {
+  const gh = raw.match(/^(?:https?:\/\/github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:\/tree\/.*)?\/?$/);
+  if (gh && (raw.includes("github.com") || /^[\w.-]+\/[\w.-]+$/.test(raw))) {
+    const source = `${gh[1]}/${gh[2]}`;
+    return { entry: { id: `gh-${linkSlug(source)}`, kind: "skills", name: givenName || gh[2], source, url: `https://github.com/${source}`, description: `Skills from ${source}` } };
+  }
+  if (/^https?:\/\//.test(raw)) {
+    const u = new URL(raw);
+    const name = linkSlug(givenName || u.hostname.replace(/^(www|mcp|api)\./, "").split(".")[0]);
+    return { entry: { id: `mcp-${name}`, kind: "mcp", name, url: raw, description: `MCP connector at ${u.host}` }, mcp: { type: /\/sse\/?$/.test(u.pathname) ? "sse" : "http", url: raw } };
+  }
+  if (/^(uvx\s+)?[@\w./-]+$/.test(raw)) {
+    const uvx = raw.startsWith("uvx ");
+    const pkg = raw.replace(/^uvx\s+/, "");
+    const name = linkSlug(givenName || pkg.split("/").pop().replace(/-?mcp-?(server)?/g, "") || pkg);
+    return { entry: { id: `mcp-${name}`, kind: "mcp", name, package: pkg, description: `MCP server from ${uvx ? "PyPI" : "npm"}: ${pkg}` }, mcp: uvx ? { command: "uvx", args: [pkg] } : { command: "npx", args: ["-y", pkg] } };
+  }
+  return null;
+}
+
+/** Add an app from a link; a skills repo is installed as a job (returned), an MCP connector is added right away */
+export function addAppFromLink({ input, name: givenName, token }) {
+  const raw = String(input || "").trim();
+  need(raw, "Paste a link or package name");
+  const link = parseAppLink(raw, givenName);
+  if (!link) throw bad("Paste a GitHub repo (owner/repo), an MCP URL (https://…), or an MCP package name", 400);
+  const s = state();
+  const remember = () => ((s.custom = [...s.custom.filter((x) => x.id !== link.entry.id), link.entry]), saveState(s));
+  if (link.entry.kind === "skills") {
+    remember();
+    const job = startJob({ kind: "install", title: `Add skills · ${link.entry.source}`, cmd: node, args: [path.join(ROOT, "scripts/add-skills.mjs"), raw, "--force"], cwd: ROOT, meta: { app: link.entry.id } });
+    waitFor(job).then(writeInstalledDoc);
+    return { added: link.entry, job };
+  }
+  if (token && link.mcp.url) {
+    // A remote connector's token goes to .env; the config only names it
+    const key = `${link.entry.name.toUpperCase().replace(/-/g, "_")}_TOKEN`;
+    writeEnv({ [key]: token });
+    link.mcp.headers = { Authorization: `Bearer \${${key}}` };
+  }
+  setMcp(link.entry.name, link.mcp);
+  remember();
+  writeInstalledDoc();
+  return { added: link.entry };
 }

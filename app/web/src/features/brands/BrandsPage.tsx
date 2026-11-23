@@ -1,55 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Palette, Plus } from "lucide-react";
-import { api, type BrandSummary } from "@/shared/api";
-import { useRun } from "@/shared/useRun";
+import type { BrandSummary } from "@/shared/api/types";
+import { useRun } from "@/shared/hooks/useRun";
 import { useBrandFonts } from "@/shared/scene/ScenePreview";
 import { Button, Dialog, Empty, ErrorNote, Field, Input, cx } from "@/shared/ui/ui";
+import { askAgent } from "@/features/agents/api";
+import { createBrand, createBrandFromStarter, useBrandStarters, useBrands } from "./api";
+import type { Starter } from "./api";
+import { byRecent, exploreStarters, industriesOf, recommendStarters, svgUrl } from "./model";
 
 // Which starter industries fit the user's brands: the starter a brand came from, else words in its name and tagline
-const INDUSTRY_WORDS: Record<string, string[]> = {
-  coffee: ["coffee", "café", "cafe", "espresso", "roast", "bean"], bakery: ["bake", "bread", "pastry", "cake", "patisserie"], restaurant: ["restaurant", "kitchen", "food", "dining", "eat"],
-  skincare: ["skin", "beauty", "serum", "cosmetic"], fitness: ["gym", "fitness", "strength", "run", "training"], yoga: ["yoga", "wellness", "breath", "pilates"],
-  fashion: ["fashion", "boutique", "dress", "wear", "tailor"], streetwear: ["street", "sneaker", "hoodie", "skate"], jewelry: ["jewel", "gold", "silver", "ring"],
-  pets: ["pet", "dog", "cat", "paw"], plants: ["plant", "garden", "green", "leaf"], books: ["book", "read", "story", "library"], saas: ["software", "app", "saas", "tool", "platform"],
-  fintech: ["money", "bank", "pay", "finance", "invest"], realestate: ["home", "estate", "realty", "property"], dental: ["dental", "clinic", "health", "care"],
-  travel: ["travel", "tour", "trip", "journey"], photo: ["photo", "studio", "film", "wedding"], kids: ["kids", "school", "learn", "tutor"], eco: ["eco", "refill", "sustainable", "reuse"],
-};
-
 export default function Brands() {
-  const { data, isLoading } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
-  const { data: st } = useQuery({ queryKey: ["brand-starters"], queryFn: () => api.get<{ starters: Starter[]; status: { error: string | null } }>("/api/brand-starters") });
+  const { data, isLoading } = useBrands();
+  const { data: st } = useBrandStarters();
   const [params, setParams] = useSearchParams();
   const mode = params.get("new");
   const [picked, setPicked] = useState<Starter | null>(null);
   const [industry, setIndustry] = useState("");
-  const brands = useMemo(() => [...(data || [])].sort((a, b) => b.updated - a.updated), [data]);
+  const brands = useMemo(() => byRecent(data || []), [data]);
   const starters = st?.starters || [];
   const latest = brands[0];
 
-  const recommended = useMemo(() => {
-    const scores = new Map<string, number>();
-    for (const b of brands) {
-      const from = starters.find((x) => x.id === b.template)?.industry;
-      if (from) scores.set(from, (scores.get(from) || 0) + 3);
-      const text = `${b.name} ${b.tagline || ""}`.toLowerCase();
-      for (const [ind, words] of Object.entries(INDUSTRY_WORDS)) if (words.some((w) => text.includes(w))) scores.set(ind, (scores.get(ind) || 0) + 1);
-    }
-    const used = new Set(brands.map((b) => b.template));
-    const fit = starters.filter((x) => scores.has(x.industry) && !used.has(x.id)).sort((a, b) => (scores.get(b.industry) || 0) - (scores.get(a.industry) || 0));
-    // Fill up with one from each other industry so there's always variety
-    const seen = new Set(fit.map((x) => x.industry));
-    const rest = starters.filter((x) => !seen.has(x.industry) && (seen.add(x.industry), true));
-    return [...fit.slice(0, 4), ...rest].slice(0, 4);
-  }, [brands, starters]);
-
-  const industries = useMemo(() => [...new Map(starters.map((s) => [s.industry, s.industryLabel])).entries()], [starters]);
-  // "One of each": per industry, a starter that isn't already in the recommended row
-  const shown = new Set(recommended.map((r) => r.id));
-  const explore = industry
-    ? starters.filter((s) => s.industry === industry)
-    : industries.map(([id]) => starters.find((s) => s.industry === id && !shown.has(s.id)) || starters.find((s) => s.industry === id)!).slice(0, 8);
+  const recommended = useMemo(() => recommendStarters(brands, starters), [brands, starters]);
+  const industries = useMemo(() => industriesOf(starters), [starters]);
+  const explore = exploreStarters(starters, industry, new Set(recommended.map((r) => r.id)));
   const open = (s: Starter) => (setPicked(s), setParams({ new: "template" }));
 
   return (
@@ -213,9 +189,6 @@ export function BrandCard({ b }: { b: BrandSummary }) {
 }
 
 type Mode = "template" | "website" | "create";
-type Starter = { id: string; name: string; industry: string; industryLabel: string; tagline: string; colors: Record<string, string>; fonts: BrandSummary["fonts"]; logoSvg: string };
-const svgUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-
 function NewBrandDialog({ open, onClose, initialMode, initialStarter = null }: { open: boolean; onClose: () => void; initialMode: Mode; initialStarter?: Starter | null }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [name, setName] = useState("");
@@ -238,7 +211,7 @@ function NewBrandDialog({ open, onClose, initialMode, initialStarter = null }: {
     try {
       if (mode === "template") {
         if (!starter) return;
-        const { slug } = await api.post<{ slug: string }>("/api/brands/from-starter", { starter: starter.id, name: name.trim() || starter.name });
+        const { slug } = await createBrandFromStarter({ starter: starter.id, name: name.trim() || starter.name });
         qc.invalidateQueries();
         onClose();
         nav(`/brands/${slug}`);
@@ -246,21 +219,21 @@ function NewBrandDialog({ open, onClose, initialMode, initialStarter = null }: {
       }
       const fullUrl = url && !/^https?:\/\//.test(url) ? `https://${url}` : url;
       const brandName = name || (fullUrl ? new URL(fullUrl).hostname.replace(/^www\./, "").split(".")[0] : "");
-      const { slug } = await api.post<{ slug: string }>("/api/brands", { name: brandName, url: fullUrl || undefined });
+      const { slug } = await createBrand({ name: brandName, url: fullUrl || undefined });
       qc.invalidateQueries();
       if (mode === "website" && fullUrl) {
         // Claude's brand-dna skill scans the site (npm run brand:extract) and turns the raw signals into DNA
-        await run("/api/claude", {
+        await run(() => askAgent({
           prompt: `Use the brand-dna skill for ${fullUrl}. The brand folder brands/${slug} already exists (skip brand:new). Scan the site, pick the logo, and write a complete brands/${slug}/brand.json.`,
           title: `Brand DNA · ${brandName}`,
           meta: { brand: slug },
-        });
+        }));
       } else if (mode === "create") {
-        await run("/api/claude", {
+        await run(() => askAgent({
           prompt: `Use the brand-create skill for brands/${slug}.\n\nThe brand folder brands/${slug} exists with the template brand.json. Here's the idea:\n${idea}\n\nYou can't ask me questions mid-task: make reasonable choices for discovery, then produce strategy, ONE identity direction, the logo SVGs, and brand.json. List what I should review and the alternatives you considered.`,
           title: `Create brand · ${brandName}`,
           meta: { brand: slug },
-        });
+        }));
       }
       onClose();
       nav(`/brands/${slug}`);
@@ -379,7 +352,7 @@ function StarterCard({ s, onClick }: { s: Starter; onClick?: () => void }) {
 }
 
 function StarterGallery({ onPick }: { onPick: (s: Starter) => void }) {
-  const { data, isLoading } = useQuery({ queryKey: ["brand-starters"], queryFn: () => api.get<{ starters: Starter[]; status: { error: string | null } }>("/api/brand-starters") });
+  const { data, isLoading } = useBrandStarters();
   const [q, setQ] = useState("");
   const [industry, setIndustry] = useState("");
   const starters = data?.starters || [];

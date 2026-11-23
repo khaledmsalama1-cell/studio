@@ -1,23 +1,24 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Download, FolderPlus, Play, Upload, X } from "lucide-react";
-import { api, ago, bytes, type BrandSummary } from "@/shared/api";
+import { ago, bytes } from "@/shared/format";
 import { PlayButton, clock } from "./player";
 import { Button, Dialog, Empty, ErrorNote, Input, PageHeader, Select, Tabs, Textarea, cx } from "@/shared/ui/ui";
+import { importMedia, sampleVoice, setMediaFolders, useLibrary, useLibraryVoices } from "./api";
+import { setBrandNarrator, useBrands } from "@/features/brands/api";
+import type { Media, Voice } from "./api";
+import { origin, SOURCE } from "./model";
+import { useMediaFilters } from "./useMediaFilters";
 
-type Voice = { voice_id: string; name: string; category: string; labels?: Record<string, string>; description?: string; preview_url?: string | null; provider: "elevenlabs" | "kokoro" };
-type VoicesResp = { elevenlabs: null | { error: string } | Voice[]; kokoro: Voice[]; usage: Record<string, { brand: string; name: string; role: string }[]> };
-type Media = { id: string; name: string; kind: "audio" | "video" | "image"; url: string; size: number; mtime: number; duration: number | null; source: "render" | "voiceover" | "project-audio" | "imported" | "folder"; brand?: string; project?: string; projectName?: string; poster?: string | null; folder?: string };
 type Tab = "voices" | "videos" | "audio" | "images";
 
-const SOURCE: Record<Media["source"], string> = { render: "Render", voiceover: "Voiceover", "project-audio": "Project audio", imported: "Imported", folder: "Folder" };
 const CATEGORY: Record<string, string> = { generated: "Designed", cloned: "Cloned", professional: "Professional clone", premade: "ElevenLabs default", local: "Free, on this computer" };
 
 export default function Library() {
   const [params, setParams] = useSearchParams();
   const tab = (params.get("tab") as Tab) || "voices";
-  const { data: media } = useQuery({ queryKey: ["library"], queryFn: () => api.get<{ items: Media[]; folders: string[] }>("/api/library") });
+  const { data: media } = useLibrary();
   const items = media?.items || [];
   const count = (k: Media["kind"]) => items.filter((i) => i.kind === k).length;
   return (
@@ -46,8 +47,8 @@ export default function Library() {
 // ---------------------------------------------------------------- voices
 function Voices() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["library-voices"], queryFn: () => api.get<VoicesResp>("/api/library/voices") });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
+  const { data, isLoading } = useLibraryVoices();
+  const { data: brands } = useBrands();
   const [line, setLine] = useState("Fresh beans taste like fruit. Old beans taste like cardboard. That's the whole secret.");
   const [samples, setSamples] = useState<Record<string, string>>({});
   const [error, setError] = useState<unknown>(null);
@@ -56,7 +57,7 @@ function Voices() {
   const sample = async (v: Voice) => {
     setError(null);
     try {
-      const r = await api.post<{ url: string }>("/api/library/sample", { provider: v.provider, voiceId: v.voice_id, text: line });
+      const r = await sampleVoice({ provider: v.provider, voiceId: v.voice_id, text: line });
       setSamples((s) => ({ ...s, [`${v.provider}:${v.voice_id}:${line}`]: r.url }));
       return r.url;
     } catch (e) {
@@ -67,11 +68,7 @@ function Voices() {
   const assign = async (v: Voice, slug: string) => {
     setError(null);
     try {
-      const { brand } = await api.get<{ brand: any }>(`/api/brands/${slug}`);
-      brand.audio ??= {};
-      brand.audio.voices ??= {};
-      brand.audio.voices.narrator = { ...brand.audio.voices.narrator, provider: v.provider, voice_id: v.voice_id };
-      await api.put(`/api/brands/${slug}`, brand);
+      await setBrandNarrator(slug, v);
       qc.invalidateQueries({ queryKey: ["library-voices"] });
     } catch (e) {
       setError(e);
@@ -187,13 +184,9 @@ function VoiceGroup({ title, note, children }: { title: string; note?: string; c
 }
 
 // ---------------------------------------------------------------- videos
-function useFilters(items: Media[]) {
-  const [brand, setBrand] = useState("");
-  const [source, setSource] = useState("");
-  const brands = [...new Set(items.map((i) => i.brand).filter(Boolean))] as string[];
-  const sources = [...new Set(items.map((i) => i.source))];
-  const list = items.filter((i) => (!brand || i.brand === brand) && (!source || i.source === source));
-  const bar = (
+/** Brand and source dropdowns over a media list */
+function MediaFilterBar({ brand, setBrand, source, setSource, brands, sources }: ReturnType<typeof useMediaFilters>) {
+  return (
     <div className="mb-4 flex flex-wrap gap-2">
       {brands.length > 1 && (
         <Select value={brand} onChange={(e) => setBrand(e.target.value)} className="h-9 w-44 text-caption" aria-label="Brand">
@@ -215,18 +208,17 @@ function useFilters(items: Media[]) {
       )}
     </div>
   );
-  return { list, bar };
 }
 
-const origin = (m: Media) => (m.project ? m.projectName : m.source === "folder" ? m.folder : "Imported");
 
 function Videos({ items }: { items: Media[] }) {
-  const { list, bar } = useFilters(items);
+  const filters = useMediaFilters(items);
+  const { list } = filters;
   const [open, setOpen] = useState<Media | null>(null);
   if (!items.length) return <Empty title="No videos yet">Rendered reels and videos from every project show up here, along with any you import.</Empty>;
   return (
     <>
-      {bar}
+      <MediaFilterBar {...filters} />
       <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5">
         {list.map((m) => (
           <button key={m.id} onClick={() => setOpen(m)} className="group text-left">
@@ -289,14 +281,15 @@ function Meta({ label, value }: { label: string; value: string }) {
 
 // ---------------------------------------------------------------- audio
 function AudioList({ items, folders }: { items: Media[]; folders: string[] }) {
-  const { list, bar } = useFilters(items);
+  const filters = useMediaFilters(items);
+  const { list } = filters;
   return (
     <div className="space-y-6">
       {items.length === 0 ? (
         <Empty title="No audio yet">Voiceovers from your projects, imported recordings and files in your added folders show up here.</Empty>
       ) : (
         <div>
-          {bar}
+          <MediaFilterBar {...filters} />
           <ul className="divide-y divide-line-soft rounded-[var(--radius-panel)] border border-line-soft bg-surface">
             {list.map((m) => (
               <li key={m.id} className="flex items-center gap-4 px-5 py-3">
@@ -329,7 +322,7 @@ function Folders({ folders }: { folders: string[] }) {
   const save = async (next: string[]) => {
     setError(null);
     try {
-      await api.put("/api/library/folders", { folders: next });
+      await setMediaFolders({ folders: next });
       setPath("");
       qc.invalidateQueries({ queryKey: ["library"] });
     } catch (e) {
@@ -367,12 +360,13 @@ function Folders({ folders }: { folders: string[] }) {
 
 // ---------------------------------------------------------------- images
 function Images({ items }: { items: Media[] }) {
-  const { list, bar } = useFilters(items);
+  const filters = useMediaFilters(items);
+  const { list } = filters;
   const [open, setOpen] = useState<Media | null>(null);
   if (!items.length) return <Empty title="No images yet">Exported carousels, posts and stories show up here.</Empty>;
   return (
     <>
-      {bar}
+      <MediaFilterBar {...filters} />
       <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4">
         {list.map((m) => (
           <button key={m.id} onClick={() => setOpen(m)} className="text-left">
@@ -427,7 +421,7 @@ function ImportButton() {
             try {
               const fd = new FormData();
               for (const f of Array.from(files)) fd.append("file", f);
-              await api.post("/api/library/upload", fd);
+              await importMedia(fd);
               qc.invalidateQueries({ queryKey: ["library"] });
             } catch (x) {
               setError(x);

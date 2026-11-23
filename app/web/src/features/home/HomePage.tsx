@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Headphones, MessageSquareText, Palette, Plus, Radar, Ruler, Search, Sparkles } from "lucide-react";
-import { api, ago, fmt, type BrandSummary, type JobSummary, type ProjectSummary, type ResearchSummary } from "@/shared/api";
+import type { BrandSummary } from "@/shared/api/types";
+import { ago, fmt } from "@/shared/format";
 import { useJobs, Section } from "@/app/Layout";
 import { ProjectTile } from "@/features/projects";
 import { StageWall } from "./StageWall";
@@ -10,11 +10,16 @@ import { Button, Empty, cx } from "@/shared/ui/ui";
 import { BrandCard } from "@/features/brands";
 import { PLATFORM_LABEL } from "@/features/research";
 
-type Overview = { brands: BrandSummary[]; projects: ProjectSummary[]; research: ResearchSummary[]; running: JobSummary[] };
 import { FORMAT_LABEL } from "@/features/projects";
+import { useBrands } from "@/features/brands/api";
+import { useOverview } from "./api";
+import { useProjects } from "@/features/projects/api";
+import { useResearchList } from "@/features/research/api";
+import { searchStudio, type SearchResult } from "./model";
+import { AGENT_SHORT, useAgents } from "@/features/agents";
 
 export default function Home() {
-  const { data } = useQuery({ queryKey: ["overview"], queryFn: () => api.get<Overview>("/api/overview") });
+  const { data } = useOverview();
   const { openCreate } = useJobs();
   const nav = useNavigate();
   const brand = data?.brands[0];
@@ -110,22 +115,20 @@ function HomeSearch({ onCreate, onAsk }: { onCreate: (q: string) => void; onAsk:
   const nav = useNavigate();
   const box = useRef<HTMLDivElement>(null);
   // Everything is local and small, so search on the client
-  const { data: projects } = useQuery({ queryKey: ["projects", ""], queryFn: () => api.get<ProjectSummary[]>("/api/projects"), enabled: open });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands"), enabled: open });
-  const { data: research } = useQuery({ queryKey: ["research"], queryFn: () => api.get<ResearchSummary[]>("/api/research"), enabled: open });
+  const { data: projects } = useProjects(undefined, { enabled: open });
+  const { data: brands } = useBrands({ enabled: open });
+  const { data: research } = useResearchList(undefined, { enabled: open });
+  const who = AGENT_SHORT[useAgents().activeId];
 
   const hits = useMemo<Hit[]>(() => {
-    const t = q.trim().toLowerCase();
-    if (!t) return [];
-    const has = (...s: (string | undefined)[]) => s.some((x) => x?.toLowerCase().includes(t));
+    const text = q.trim();
+    if (!text) return [];
     return [
-      ...(brands || []).filter((b) => has(b.name, b.tagline)).slice(0, 3).map((b) => ({ key: "b" + b.slug, label: b.name, meta: "Brand", to: `/brands/${b.slug}`, icon: <span className="size-5 rounded-full" style={{ background: b.colors.primary, boxShadow: `inset 0 0 0 4px ${b.colors.accent}` }} /> })),
-      ...(projects || []).filter((p) => has(p.name, p.format, p.brand, p.firstScene?.text)).slice(0, 5).map((p) => ({ key: "p" + p.brand + p.id, label: p.name, meta: `${FORMAT_LABEL[p.format] || p.format} · ${p.brand}`, to: `/projects/${p.brand}/${p.id}`, icon: <span className="size-5 rounded" style={{ background: p.colors.primary }} /> })),
-      ...(research || []).filter((r) => has(r.name, r.handle, r.platform)).slice(0, 3).map((r) => ({ key: "r" + r.brand + r.key, label: `${r.name} @${r.handle}`, meta: `Research · ${PLATFORM_LABEL[r.platform] || r.platform}`, to: `/research/${r.brand}/${r.key}`, icon: <Radar className="size-5 text-ink-3" strokeWidth={1.5} /> })),
-      { key: "create", label: `Create “${q.trim()}”`, meta: "Find a format", run: () => onCreate(q.trim()), icon: <Plus className="size-5 text-ink-3" strokeWidth={1.5} /> },
-      { key: "ask", label: `Ask Claude: ${q.trim()}`, meta: "Claude plans and makes it", run: () => onAsk(q.trim()), icon: <Sparkles className="size-5 text-cobalt" strokeWidth={1.5} /> },
+      ...searchStudio(text, { brands, projects, research }).map((r) => ({ key: r.key, label: r.label, to: r.to, ...resultLook(r) })),
+      { key: "create", label: `Create “${text}”`, meta: "Find a format", run: () => onCreate(text), icon: <Plus className="size-5 text-ink-3" strokeWidth={1.5} /> },
+      { key: "ask", label: `Ask ${who}: ${text}`, meta: `${who} plans and makes it`, run: () => onAsk(text), icon: <Sparkles className="size-5 text-cobalt" strokeWidth={1.5} /> },
     ];
-  }, [q, projects, brands, research, onCreate, onAsk]);
+  }, [q, projects, brands, research, onCreate, onAsk, who]);
 
   useEffect(() => setActive(0), [q]);
   useEffect(() => {
@@ -214,4 +217,11 @@ function FormatGlyph({ brand, w, h, stack, bars }: { brand?: BrandSummary; w: nu
       </span>
     </span>
   );
+}
+
+/** How a search result looks: its meta line and a small swatch or icon */
+function resultLook(r: SearchResult): { meta: string; icon: ReactNode } {
+  if (r.kind === "brand") return { meta: "Brand", icon: <span className="size-5 rounded-full" style={{ background: r.brand.colors.primary, boxShadow: `inset 0 0 0 4px ${r.brand.colors.accent}` }} /> };
+  if (r.kind === "project") return { meta: `${FORMAT_LABEL[r.project.format] || r.project.format} · ${r.project.brand}`, icon: <span className="size-5 rounded" style={{ background: r.project.colors.primary }} /> };
+  return { meta: `Research · ${PLATFORM_LABEL[r.research.platform] || r.research.platform}`, icon: <Radar className="size-5 text-ink-3" strokeWidth={1.5} /> };
 }

@@ -1,8 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bot, Check, Lock, Plug, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
-import { type SettingsData, api } from "@/shared/api";
 import { AGENT_SHORT, useAgents } from "@/features/agents";
 import { ErrorNote, cx } from "@/shared/ui/ui";
 import { CONNECTIONS, ConnectionsSection } from "./sections/ConnectionsSection";
@@ -11,7 +10,8 @@ import { DefaultsSection } from "./sections/DefaultsSection";
 import { AppearanceSection } from "./sections/AppearanceSection";
 import { SystemSection } from "./sections/SystemSection";
 import { AgentsSection } from "./sections/AgentsSection";
-import type { Doctor, Saver, SectionId } from "./types";
+import type { Saver, SectionId } from "./types";
+import { saveSettings, useDoctor, useSettings } from "./api";
 
 const SECTIONS = [
   { id: "agents", label: "Agents", icon: Bot },
@@ -27,15 +27,15 @@ export default function SettingsPage() {
   const [params, setParams] = useSearchParams();
   const section = (SECTIONS.find((s) => s.id === params.get("s"))?.id || "agents") as SectionId;
   const go = (s: SectionId) => setParams({ s }, { replace: true });
-  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => api.get<SettingsData>("/api/settings") });
-  const doctor = useQuery({ queryKey: ["doctor"], queryFn: () => api.get<Doctor>("/api/doctor"), staleTime: 60_000 });
+  const { data } = useSettings();
+  const doctor = useDoctor();
   const [saved, setSaved] = useState(0);
   const [err, setErr] = useState<unknown>(null);
 
   const save: Saver = async (body) => {
     setErr(null);
     try {
-      await api.put("/api/settings", body);
+      await saveSettings(body);
       setSaved(Date.now());
       await qc.invalidateQueries({ queryKey: ["settings"] });
       qc.invalidateQueries({ queryKey: ["doctor"] });

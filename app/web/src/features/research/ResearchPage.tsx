@@ -1,18 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { api, ago, fmt, type BrandSummary, type ResearchSummary } from "@/shared/api";
-import { useRun } from "@/shared/useRun";
+import type { BrandSummary } from "@/shared/api/types";
+import { ago, fmt } from "@/shared/format";
+import { useRun } from "@/shared/hooks/useRun";
 import { useJobs } from "@/app/Layout";
 import { Button, Dialog, Empty, ErrorNote, Field, Input, PageHeader, Select, cx } from "@/shared/ui/ui";
+import { getResearchList, startResearch, useResearchList } from "./api";
+import { findReport } from "./model";
+import { useBrands } from "@/features/brands/api";
+import { useSettings } from "@/features/settings/api";
+import { PLATFORM_LABEL, PROVIDER_NOTE } from "./model";
 
-export const PLATFORM_LABEL: Record<string, string> = { instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", facebook: "Facebook", linkedin: "LinkedIn" };
 
 export default function Research() {
   const [params, setParams] = useSearchParams();
-  const { data } = useQuery({ queryKey: ["research"], queryFn: () => api.get<ResearchSummary[]>("/api/research") });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
+  const { data } = useResearchList();
+  const { data: brands } = useBrands();
   const brandName = (s: string) => (s === "_" ? "No brand" : brands?.find((b) => b.slug === s)?.name || s);
   return (
     <>
@@ -69,12 +73,6 @@ export default function Research() {
   );
 }
 
-const PROVIDER_NOTE: Record<string, Record<string, string>> = {
-  tiktok: { auto: "Free via yt-dlp. Falls back to Apify if TikTok blocks it and a token is set." },
-  youtube: { auto: "Free via yt-dlp, with likes, comments and dates." },
-  instagram: { auto: "Profiles need Apify (paid) or the Meta Graph API (free, business/creator accounts). Single post links are free." },
-  facebook: { auto: "Pages need Apify. Pages you manage can use the Meta Graph API. Single video links are free." },
-};
 
 function NewResearchDialog({ open, onClose, defaultBrand, brands }: { open: boolean; onClose: () => void; defaultBrand: string; brands: BrandSummary[] }) {
   const [platform, setPlatform] = useState("tiktok");
@@ -83,7 +81,7 @@ function NewResearchDialog({ open, onClose, defaultBrand, brands }: { open: bool
   const [limit, setLimit] = useState(30);
   const [provider, setProvider] = useState("auto");
   const [tab, setTab] = useState("shorts");
-  const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: () => api.get<{ env: Record<string, string | null> }>("/api/settings"), enabled: open });
+  const { data: settings } = useSettings({ enabled: open });
   const { run, error, pending } = useRun();
   const { jobs } = useJobs();
   const nav = useNavigate();
@@ -94,9 +92,8 @@ function NewResearchDialog({ open, onClose, defaultBrand, brands }: { open: bool
   useEffect(() => {
     const j = jobs.find((x) => x.id === started);
     if (j?.status === "done") {
-      api.get<ResearchSummary[]>(`/api/research${brand ? `?brand=${brand}` : ""}`).then((list) => {
-        const handle = target.trim().replace(/^@/, "").toLowerCase();
-        const r = list.find((x) => x.platform === platform && x.handle?.toLowerCase() === handle) || list[0];
+      getResearchList(brand || undefined).then((list) => {
+        const r = findReport(list, platform, target);
         if (r) nav(`/research/${r.brand}/${r.key}`);
         onClose();
         setStarted(null);
@@ -113,7 +110,7 @@ function NewResearchDialog({ open, onClose, defaultBrand, brands }: { open: bool
         className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
-          const job = await run("/api/research", { platform, target, brand: brand || undefined, limit, provider, tab: platform === "youtube" ? tab : undefined });
+          const job = await run(() => startResearch({ platform, target, brand: brand || undefined, limit, provider, tab: platform === "youtube" ? tab : undefined }));
           if (job) setStarted(job.id);
         }}
       >

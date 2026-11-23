@@ -5,7 +5,7 @@ import { useTheme } from "@/shared/theme";
 import { useAgents, AGENT_SHORT } from "@/features/agents";
 import { NowPlaying } from "@/features/library";
 import { useJobFeed } from "@/features/jobs";
-import type { JobSummary } from "@/shared/api";
+import type { JobSummary } from "@/shared/api/types";
 import { JobLog, Duration } from "@/features/jobs";
 import { CreateDialog, type CreateStart } from "@/features/create";
 import { cx } from "@/shared/ui/ui";

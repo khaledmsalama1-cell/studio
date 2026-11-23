@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
 import { Square } from "lucide-react";
-import { api, type JobDetail } from "@/shared/api";
+import type { JobDetail } from "@/shared/api/types";
 import { useJob } from "./useJob";
 import { Badge, Button } from "@/shared/ui/ui";
 import { ChatEvents } from "@/features/agents";
 import { useJobs } from "@/app/Layout";
+import { cancelJob } from "./api";
 
 /** Live log (or Claude conversation) for one job. */
 export function JobLog({ id, compact, onClose }: { id: string; compact?: boolean; onClose?: () => void }) {
@@ -26,7 +27,7 @@ export function JobLog({ id, compact, onClose }: { id: string; compact?: boolean
         </div>
         <div className="flex items-center gap-1.5">
           {job.status === "running" && (
-            <Button size="sm" variant="ghost" icon={<Square className="size-3.5" />} onClick={() => api.post(`/api/jobs/${job.id}/cancel`)}>
+            <Button size="sm" variant="ghost" icon={<Square className="size-3.5" />} onClick={() => cancelJob(job.id)}>
               Stop
             </Button>
           )}

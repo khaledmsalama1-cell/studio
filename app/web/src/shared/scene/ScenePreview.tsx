@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import type { Colors, Fonts, Scene } from "@/shared/api";
+import type { Colors, Fonts, Scene } from "@/shared/api/types";
 
 // Loads a brand's Google Fonts once per family so previews show the real typefaces.
 const loaded = new Set<string>();

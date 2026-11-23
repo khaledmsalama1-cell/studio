@@ -1,25 +1,23 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Braces, FolderKanban, Globe, Image as ImageIcon, LayoutGrid, Mic, Palette, Play, Plus, Radar, Save, Shapes, Sparkles, Trash2, Type, Upload } from "lucide-react";
-import { api, ago, bytes, fmt, type BrandSummary, type ProjectSummary, type ResearchSummary } from "@/shared/api";
-import { useRun } from "@/shared/useRun";
+import { ago, bytes, fmt } from "@/shared/format";
+import { useRun } from "@/shared/hooks/useRun";
 import { PlayButton } from "@/features/library";
 import { useBrandFonts } from "@/shared/scene/ScenePreview";
 import { Button, Empty, ErrorNote, Field, Input, Panel, Select, Textarea, cx } from "@/shared/ui/ui";
 import { Markdown } from "@/shared/ui/Markdown";
 import { ProjectCard } from "@/features/projects";
 import { PLATFORM_LABEL } from "@/features/research";
+import { askAgent } from "@/features/agents/api";
+import { extractBrandFromSite, saveBrand, uploadBrandAssets, uploadBrandLogo, useBrand, useBrands, useVoices } from "./api";
+import { sampleVoice } from "@/features/library/api";
+import { useProjects } from "@/features/projects/api";
+import { useResearchList } from "@/features/research/api";
+import type { BrandResp } from "./api";
+import { contrastRatio } from "./model";
 
-type MediaFile = { path: string; url: string; size: number; kind: "image" | "video" | "audio" };
-type BrandResp = {
-  brand: any;
-  logos: { name: string; path: string; url: string }[];
-  media: MediaFile[];
-  site: null | { source: string; fetchedAt: string; colors: { brandCandidates: { hex: string; count: number }[]; neutrals: { hex: string }[] }; fonts: { google: string[]; cssFamilies: { family: string }[] }; pages: number; downloads: { path: string; url: string }[] };
-  insights: string | null;
-};
-type Voices = { elevenlabs: null | { error: string } | { voice_id: string; name: string; category?: string; labels?: Record<string, string>; preview_url?: string }[]; kokoro: { voice_id: string; name: string }[] };
 
 const COLOR_ROLES = [
   ["primary", "Main brand colour — hook and CTA backgrounds"],
@@ -50,8 +48,8 @@ export default function BrandDetail() {
   const go = (s: Section) => setParams(s === "all" ? {} : { s });
   const qc = useQueryClient();
   const nav = useNavigate();
-  const { data, error } = useQuery({ queryKey: ["brand", slug], queryFn: () => api.get<BrandResp>(`/api/brands/${slug}`) });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
+  const { data, error } = useBrand(slug);
+  const { data: brands } = useBrands();
   const [draft, setDraft] = useState<any>(null);
   const [saveErr, setSaveErr] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
@@ -83,7 +81,7 @@ export default function BrandDetail() {
     setSaving(true);
     setSaveErr(null);
     try {
-      await api.put(`/api/brands/${slug}`, draft);
+      await saveBrand(slug, draft);
       original.current = JSON.stringify(draft);
       qc.invalidateQueries();
     } catch (e) {
@@ -142,11 +140,11 @@ export default function BrandDetail() {
               icon={<Sparkles className="size-4" />}
               busy={!!claudeBusy}
               onClick={() =>
-                run("/api/claude", {
+                run(() => askAgent({
                   prompt: `Review brands/${slug}/brand.json with the brand-strategist agent. Fill anything empty or generic using the research in brands/${slug}/research/ (website scan, social insights) — never invent facts. Check colour contrast. Save the improved brand.json and summarise what changed.`,
                   title: `Refine DNA · ${draft.name}`,
                   meta: { brand: slug },
-                })
+                }))
               }
             >
               Refine with Claude
@@ -194,8 +192,8 @@ function AllAssets({ draft, data, slug, go }: { draft: any; data: BrandResp; slu
   const logo = data.logos.find((l) => l.path === draft.visual?.logo?.primary)?.url || data.logos[0]?.url;
   const narrator = draft.audio?.voices?.narrator || {};
   const images = data.media.filter((m) => m.kind === "image");
-  const { data: projects } = useQuery({ queryKey: ["projects", slug], queryFn: () => api.get<ProjectSummary[]>(`/api/projects?brand=${slug}`) });
-  const { data: research } = useQuery({ queryKey: ["research", slug], queryFn: () => api.get<ResearchSummary[]>(`/api/research?brand=${slug}`) });
+  const { data: projects } = useProjects(slug);
+  const { data: research } = useResearchList(slug);
   const [sampleErr, setSampleErr] = useState<unknown>(null);
   const filled = [
     !!logo,
@@ -310,7 +308,7 @@ function AllAssets({ draft, data, slug, go }: { draft: any; data: BrandResp; slu
                   onBeforePlay={async () => {
                     setSampleErr(null);
                     try {
-                      const r = await api.post<{ url: string }>("/api/library/sample", { provider: narrator.provider || "elevenlabs", voiceId: narrator.voice_id, text: draft.voice?.examples?.[0] || draft.tagline, modelId: narrator.model_id, settings: narrator.settings });
+                      const r = await sampleVoice({ provider: narrator.provider || "elevenlabs", voiceId: narrator.voice_id, text: draft.voice?.examples?.[0] || draft.tagline, modelId: narrator.model_id, settings: narrator.settings });
                       return r.url;
                     } catch (e) {
                       setSampleErr(e);
@@ -422,7 +420,7 @@ function LogosSection({ draft, set, data, slug }: { draft: any; set: (p: string,
     fd.append("file", file);
     fd.append("role", role);
     try {
-      const { path } = await api.post<{ path: string }>(`/api/brands/${slug}/logo`, fd);
+      const { path } = await uploadBrandLogo(slug, fd);
       set(`visual.logo.${role}`, path);
       qc.invalidateQueries({ queryKey: ["brand", slug] });
     } catch (e) {
@@ -559,7 +557,7 @@ function MediaSection({ data, slug }: { data: BrandResp; slug: string }) {
     try {
       const fd = new FormData();
       for (const f of Array.from(files)) fd.append("file", f);
-      await api.post(`/api/brands/${slug}/assets`, fd);
+      await uploadBrandAssets(slug, fd);
       qc.invalidateQueries({ queryKey: ["brand", slug] });
     } catch (e) {
       setErr(e);
@@ -662,15 +660,6 @@ function ColorRow({ label, hint, value, onChange }: { label: string; hint: strin
   );
 }
 
-function lum(hex: string) {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-const ratio = (a: string, b: string) => {
-  if (!/^#[0-9a-f]{6}$/i.test(a) || !/^#[0-9a-f]{6}$/i.test(b)) return null;
-  const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
-  return (x + 0.05) / (y + 0.05);
-};
 function ContrastNotes({ c }: { c: Record<string, string> }) {
   const pairs = [
     ["Text on background", c.ink, c.background, 4.5],
@@ -681,7 +670,7 @@ function ContrastNotes({ c }: { c: Record<string, string> }) {
   return (
     <div className="mt-5 grid grid-cols-2 gap-2">
       {pairs.map(([label, fg, bg, min]) => {
-        const r = ratio(fg, bg);
+        const r = contrastRatio(fg, bg);
         const okay = r != null && r >= min;
         return (
           <div key={label} className="flex items-center gap-2.5 rounded-lg border border-line-soft bg-raised p-2">
@@ -712,7 +701,7 @@ function Lines({ value, onChange, rows = 4, placeholder }: { value: string[] | u
 function VoiceTab({ draft, set }: { draft: any; set: (p: string, v: unknown) => void }) {
   const v = draft.voice || {};
   const narrator = draft.audio?.voices?.narrator || {};
-  const { data: voices } = useQuery({ queryKey: ["voices"], queryFn: () => api.get<Voices>("/api/voices") });
+  const { data: voices } = useVoices();
   const audio = useRef<HTMLAudioElement | null>(null);
   const play = (url?: string) => {
     if (!url) return;
@@ -949,8 +938,8 @@ function Audience({ draft, set }: { draft: any; set: (p: string, v: unknown) => 
 
 // ---------------------------------------------------------------- Research & projects
 function ResearchTab({ slug, data, website }: { slug: string; data: BrandResp; website?: string }) {
-  const { data: research } = useQuery({ queryKey: ["research", slug], queryFn: () => api.get<ResearchSummary[]>(`/api/research?brand=${slug}`) });
-  const { data: projects } = useQuery({ queryKey: ["projects", slug], queryFn: () => api.get<ProjectSummary[]>(`/api/projects?brand=${slug}`) });
+  const { data: research } = useResearchList(slug);
+  const { data: projects } = useProjects(slug);
   const { run, running, error } = useRun();
   const [url, setUrl] = useState(website || "");
   return (
@@ -968,7 +957,7 @@ function ResearchTab({ slug, data, website }: { slug: string; data: BrandResp; w
             className="flex gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              run(`/api/brands/${slug}/extract`, { url: /^https?:/.test(url) ? url : `https://${url}` });
+              run(() => extractBrandFromSite(slug, { url: /^https?:/.test(url) ? url : `https://${url}` }));
             }}
           >
             <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="brand.com" />

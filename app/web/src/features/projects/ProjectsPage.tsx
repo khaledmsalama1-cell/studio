@@ -1,32 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowDownUp, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, LayoutGrid, List, Plus, Search, X } from "lucide-react";
-import { api, ago, type BrandSummary, type ProjectSummary } from "@/shared/api";
+import type { BrandSummary, ProjectSummary } from "@/shared/api/types";
+import { ago } from "@/shared/format";
 import { useJobs } from "@/app/Layout";
 import { SceneFrame, Stage } from "@/shared/scene/ScenePreview";
-import { FORMAT_LABEL, ProjectTile, STATIC } from "./ProjectTile";
+import { ProjectTile } from "./ProjectTile";
+import { FORMAT_LABEL, STATIC } from "./model";
 import { Badge, Button, Empty, cx } from "@/shared/ui/ui";
-
-const TYPES = ["reel", "promo", "landscape", "carousel", "post", "square", "story"];
-const STATUSES = ["draft", "in-review", "ready", "posted", "archived"];
-const DATES: [string, string][] = [
-  ["today", "Today"],
-  ["week", "Last 7 days"],
-  ["month", "Last 30 days"],
-  ["older", "Older than 30 days"],
-];
-const SORTS: [string, string][] = [
-  ["edited", "Last edited"],
-  ["created", "Newest first"],
-  ["name", "Name"],
-];
+import { useBrands } from "@/features/brands/api";
+import { useProjects } from "./api";
+import { countByBrand, DATES, filterProjects, recentProjects, SORTS, STATUSES, TYPES } from "./model";
 
 export default function Projects() {
   const [params, setParams] = useSearchParams();
   const { openCreate } = useJobs();
-  const { data, isLoading } = useQuery({ queryKey: ["projects", ""], queryFn: () => api.get<ProjectSummary[]>("/api/projects") });
-  const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
+  const { data, isLoading } = useProjects(undefined);
+  const { data: brands } = useBrands();
 
   // Filters live in the URL so a filtered view can be bookmarked or linked from a brand
   const get = (k: string) => params.get(k) || "";
@@ -46,27 +36,9 @@ export default function Projects() {
   const filtering = !!(q || type || brand || status || date);
   const brandOf = (slug: string) => brands?.find((b) => b.slug === slug);
 
-  const list = useMemo(() => {
-    const t = q.toLowerCase();
-    const day = 864e5;
-    const age = (p: ProjectSummary) => Date.now() - p.updated;
-    const rows = (data || []).filter(
-      (p) =>
-        (!t || `${p.name} ${p.brand} ${brands?.find((b) => b.slug === p.brand)?.name || ""} ${p.format} ${p.firstScene?.text || ""}`.toLowerCase().includes(t)) &&
-        (!type || p.format === type) &&
-        (!brand || p.brand === brand) &&
-        (status ? p.status === status : p.status !== "archived") &&
-        (!date || (date === "today" && age(p) < day) || (date === "week" && age(p) < 7 * day) || (date === "month" && age(p) < 30 * day) || (date === "older" && age(p) >= 30 * day))
-    );
-    return rows.sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name) : sort === "created" ? (b.createdAt || "").localeCompare(a.createdAt || "") || b.updated - a.updated : b.updated - a.updated));
-  }, [data, brands, q, type, brand, status, date, sort]);
-
-  const recents = useMemo(() => [...(data || [])].filter((p) => p.status !== "archived").sort((a, b) => b.updated - a.updated).slice(0, 12), [data]);
-  const counts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of data || []) if (p.status !== "archived") m.set(p.brand, (m.get(p.brand) || 0) + 1);
-    return m;
-  }, [data]);
+  const list = useMemo(() => filterProjects(data || [], { q, type, brand, status, date, sort }, (slug) => brands?.find((b) => b.slug === slug)?.name || ""), [data, brands, q, type, brand, status, date, sort]);
+  const recents = useMemo(() => recentProjects(data || []), [data]);
+  const counts = useMemo(() => countByBrand(data || []), [data]);
 
   return (
     <>

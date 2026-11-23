@@ -9,6 +9,8 @@ import { promisify } from "node:util";
 import { ROOT } from "../../core/paths.mjs";
 import { startJob, addEvent } from "../../core/jobs.mjs";
 import { getSettings, saveSettings } from "../../core/settings.mjs";
+import { bad, need } from "../../core/http.mjs";
+import { writeEnvKeys } from "../../core/env.mjs";
 
 const run = promisify(execFile);
 
@@ -289,91 +291,93 @@ export function runAgent({ prompt, sessionId, title, meta = {}, agent }) {
   });
 }
 
-// ---------------------------------------------------------------- routes
-export function registerAgents(app, { need, bad, writeEnvKeys }) {
-  app.get("/api/agents", async (c) => {
-    const fresh = c.req.query("fresh") === "1";
-    const list = await Promise.all(Object.keys(AGENTS).map((id) => agentStatus(id, { fresh })));
-    return c.json({ active: agentSettings().active, agents: list });
+// ---------------------------------------------------------------- managing agents
+const requireAgent = (id) => need(AGENTS[id], "Unknown agent");
+const setAuth = (id, mode) => {
+  const cur = agentSettings();
+  saveSettings({ agent: { ...cur, auth: { ...cur.auth, [id]: mode } } });
+  cache.clear();
+};
+
+/** Every agent's status and which one is active */
+export async function listAgents({ fresh = false } = {}) {
+  return { active: agentSettings().active, agents: await Promise.all(Object.keys(AGENTS).map((id) => agentStatus(id, { fresh }))) };
+}
+
+/** Pick the active agent and/or how agents sign in (account or key) */
+export function updateAgentPrefs({ active, auth }) {
+  const cur = agentSettings();
+  if (active) requireAgent(active);
+  if (auth) for (const [k, v] of Object.entries(auth)) need(AGENTS[k] && ["account", "key"].includes(v), "Unknown sign-in mode");
+  saveSettings({ agent: { active: active || cur.active, auth: { ...cur.auth, ...(auth || {}) } } });
+  cache.clear();
+}
+
+/** Codex keeps its own credentials; this is its documented way to sign in with a key */
+const codexLogin = (key) =>
+  new Promise((resolve, reject) => {
+    const p = execFile("codex", ["login", "--with-api-key"], { timeout: 30000, env: cleanEnv("codex") }, (e) => (e ? reject(e) : resolve()));
+    p.stdin.end(key);
   });
 
-  app.put("/api/agents", async (c) => {
-    const { active, auth } = await c.req.json();
-    const cur = agentSettings();
-    if (active) need(AGENTS[active], "Unknown agent");
-    if (auth) for (const [k, v] of Object.entries(auth)) need(AGENTS[k] && ["account", "key"].includes(v), "Unknown sign-in mode");
-    saveSettings({ agent: { active: active || cur.active, auth: { ...cur.auth, ...(auth || {}) } } });
-    cache.clear();
-    return c.json({ ok: true });
-  });
-
-  // Paste an API key: checked with its own service, then kept where that agent reads it
-  app.post("/api/agents/:id/key", async (c) => {
-    const id = c.req.param("id");
-    need(AGENTS[id], "Unknown agent");
-    const { value } = await c.req.json();
-    const key = String(value || "").replace(/[\r\n]/g, "").trim();
-    need(key, "Paste a key first");
-    let problem;
+/** Sign an agent in with an API key: checked with its own service, then kept where that agent reads it */
+export async function connectAgentKey(id, value) {
+  requireAgent(id);
+  const key = String(value || "").replace(/[\r\n]/g, "").trim();
+  need(key, "Paste a key first");
+  let problem;
+  try {
+    problem = await KEY_CHECKS[id](key);
+  } catch {
+    problem = "Couldn't reach the service to check the key";
+  }
+  if (problem) return { ok: false, detail: problem };
+  if (id === "codex") {
     try {
-      problem = await KEY_CHECKS[id](key);
-    } catch {
-      problem = "Couldn't reach the service to check the key";
-    }
-    if (problem) return c.json({ ok: false, detail: problem });
-    if (id === "codex") {
-      // Codex keeps its own credentials; this is its documented way to sign in with a key
-      try {
-        await new Promise((resolve, reject) => {
-          const p = execFile("codex", ["login", "--with-api-key"], { timeout: 30000, env: cleanEnv("codex") }, (e) => (e ? reject(e) : resolve()));
-          p.stdin.end(key);
-        });
-      } catch (e) {
-        return c.json({ ok: false, detail: `Codex couldn't save the key: ${String(e.stderr || e.message).trim().split("\n")[0]}` });
-      }
-    } else writeEnvKeys({ [AGENTS[id].keyEnv]: key });
-    const cur = agentSettings();
-    saveSettings({ agent: { ...cur, auth: { ...cur.auth, [id]: "key" } } });
-    cache.clear();
-    return c.json({ ok: true, status: await agentStatus(id, { fresh: true }) });
-  });
-
-  app.delete("/api/agents/:id/key", async (c) => {
-    const id = c.req.param("id");
-    need(AGENTS[id], "Unknown agent");
-    if (id === "codex") await run("codex", ["logout"], { timeout: 20000, env: cleanEnv("codex") }).catch(() => {});
-    else writeEnvKeys({ [AGENTS[id].keyEnv]: "" });
-    const cur = agentSettings();
-    saveSettings({ agent: { ...cur, auth: { ...cur.auth, [id]: "account" } } });
-    cache.clear();
-    return c.json({ ok: true });
-  });
-
-  // A tiny real task, so "connected" means the agent actually answers
-  app.post("/api/agents/:id/test", async (c) => {
-    const id = c.req.param("id");
-    need(AGENTS[id], "Unknown agent");
-    const st = await agentStatus(id, { fresh: true });
-    if (!st.installed) throw bad(`${st.name} isn't installed yet`);
-    const ask = "Reply with one short sentence saying you're ready to make content in this studio. Don't use any tools.";
-    const args = id === "claude" ? ["-p", ask, ...(getSettings().claude.model ? ["--model", getSettings().claude.model] : [])] : id === "codex" ? ["exec", "--skip-git-repo-check", "--sandbox", "read-only", ask] : ["-p", ask, "--output-format", "text", "--skip-trust"];
-    const t = Date.now();
-    try {
-      const { stdout } = await run(AGENTS[id].bin, args, { cwd: ROOT, timeout: 120000, env: cleanEnv(id), maxBuffer: 8 * 1024 * 1024 });
-      const lines = stdout.trim().split("\n").filter(Boolean);
-      return c.json({ ok: true, reply: short(lines[lines.length - 1] || "", 240), seconds: Math.round((Date.now() - t) / 100) / 10 });
+      await codexLogin(key);
     } catch (e) {
-      const msg = String(e.stderr || e.stdout || e.message).trim().split("\n").filter(Boolean).slice(-2).join(" ");
-      return c.json({ ok: false, reply: e.killed ? "No answer within 2 minutes" : short(msg, 300), seconds: Math.round((Date.now() - t) / 100) / 10 });
+      return { ok: false, detail: `Codex couldn't save the key: ${String(e.stderr || e.message).trim().split("\n")[0]}` };
     }
-  });
+  } else writeEnvKeys({ [AGENTS[id].keyEnv]: key });
+  setAuth(id, "key");
+  return { ok: true, status: await agentStatus(id, { fresh: true }) };
+}
 
-  // Installs only these official packages
-  app.post("/api/agents/:id/install", (c) => {
-    const id = c.req.param("id");
-    need(AGENTS[id], "Unknown agent");
-    cache.delete(id);
-    const job = startJob({ kind: "setup", title: `Install ${AGENTS[id].name}`, cmd: process.platform === "win32" ? "npm.cmd" : "npm", args: ["install", "-g", AGENTS[id].pkg], cwd: ROOT });
-    return c.json({ id: job.id, status: job.status });
-  });
+/** Forget an agent's API key and go back to account sign-in */
+export async function removeAgentKey(id) {
+  requireAgent(id);
+  if (id === "codex") await run("codex", ["logout"], { timeout: 20000, env: cleanEnv("codex") }).catch(() => {});
+  else writeEnvKeys({ [AGENTS[id].keyEnv]: "" });
+  setAuth(id, "account");
+}
+
+const TEST_ASK = "Reply with one short sentence saying you're ready to make content in this studio. Don't use any tools.";
+const testArgs = (id) => {
+  const model = getSettings().claude.model;
+  if (id === "claude") return ["-p", TEST_ASK, ...(model ? ["--model", model] : [])];
+  if (id === "codex") return ["exec", "--skip-git-repo-check", "--sandbox", "read-only", TEST_ASK];
+  return ["-p", TEST_ASK, "--output-format", "text", "--skip-trust"];
+};
+/** A tiny real task, so "connected" means the agent actually answers */
+export async function testAgent(id) {
+  requireAgent(id);
+  const st = await agentStatus(id, { fresh: true });
+  if (!st.installed) throw bad(`${st.name} isn't installed yet`);
+  const t = Date.now();
+  const seconds = () => Math.round((Date.now() - t) / 100) / 10;
+  try {
+    const { stdout } = await run(AGENTS[id].bin, testArgs(id), { cwd: ROOT, timeout: 120000, env: cleanEnv(id), maxBuffer: 8 * 1024 * 1024 });
+    const lines = stdout.trim().split("\n").filter(Boolean);
+    return { ok: true, reply: short(lines[lines.length - 1] || "", 240), seconds: seconds() };
+  } catch (e) {
+    const msg = String(e.stderr || e.stdout || e.message).trim().split("\n").filter(Boolean).slice(-2).join(" ");
+    return { ok: false, reply: e.killed ? "No answer within 2 minutes" : short(msg, 300), seconds: seconds() };
+  }
+}
+
+/** Install an agent from its official npm package (a job) */
+export function installAgent(id) {
+  requireAgent(id);
+  cache.delete(id);
+  return startJob({ kind: "setup", title: `Install ${AGENTS[id].name}`, cmd: process.platform === "win32" ? "npm.cmd" : "npm", args: ["install", "-g", AGENTS[id].pkg], cwd: ROOT });
 }

@@ -62,6 +62,21 @@ app/
         └── settings/             #   SettingsPage + controls.tsx + sections/ (one file per section)
 ```
 
-Rules: a feature may import `@/shared/*`, `@/app/*` and other features' `index.ts`, never another feature's files directly. `@/` is `app/web/src` (set in `vite.config.ts` and `tsconfig.json`). On the server, a new feature is a folder with a `register<Name>(app)` function added to `index.mjs`.
+Rules: a feature may import `@/shared/*`, `@/app/*`, and another feature's `index.ts` (components, pages) or `api.ts` (data), never its other files. `@/` is `app/web/src` (set in `vite.config.ts` and `tsconfig.json`). On the server, a new feature is a folder with a `register<Name>(app)` function added to `index.mjs`.
+
+## Code standards (logic apart from UI)
+
+Every feature is split by job, so each file has one reason to change:
+
+| Layer | Web (`app/web/src/features/<name>/`) | Server (`app/server/features/<name>/`) |
+|---|---|---|
+| **Data / HTTP** | `api.ts`: every request the feature makes. Query hooks (`useBrands()`, `useProject(brand, id)`) with the cache keys defined once, and actions (`saveBrand(slug, brand)`, `runProjectStep(…)`) that take the server's request body. Components never call `fetch` or the API client. | `routes.mjs`: reads the request (params, JSON, uploads as plain `{ name, bytes }`), calls the service, sends the response. No logic. |
+| **Rules** | `model.ts`: pure functions and domain constants (filtering, sorting, recommendations, scene operations, permission mapping, contrast…). No React, no requests, so they're unit-tested directly. | `<name>.mjs`: the service. Reads and writes files, validates, starts jobs. Pure pieces (`renameStarter`, `voiceProvider`, `parseAppLink`, `parseDoctor`…) are exported and unit-tested. |
+| **State** | `use….ts` hooks for stateful flows (`useServiceConnection`, `useAgentSetup`, `useChatTabs`, `useMediaFilters`). Generic ones live in `shared/hooks/` (`useRun`, `useConfirm`, `useKeyEntry`, `useCopy`). | `core/`: shared plumbing (paths, jobs, settings, `.env`, errors, file streaming). |
+| **View** | Components: render what hooks and models give them, and call actions. | (none) |
+
+When adding to a feature: a new request goes in `api.ts` (or the service + `routes.mjs`), a new rule goes in `model.ts` (or the service) with a test, and the component only wires them up.
+
+**Tests:** `npm test` in `app/` runs `app/test/*.test.mjs` with Node's built-in test runner (Node runs the TypeScript models directly). `npx tsc --noEmit --noUnusedLocals` type-checks the UI.
 
 Nothing here is exposed to the internet. Don't change the server to listen on `0.0.0.0`: it can run commands on your computer.

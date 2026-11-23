@@ -1,3 +1,4 @@
+// Shapes of what the studio server returns, shared by every feature.
 // Typed client for the local studio server.
 
 export type Colors = Partial<Record<"primary" | "secondary" | "accent" | "background" | "ink" | "muted", string>>;
@@ -173,39 +174,6 @@ export type ClaudeEvent =
 export type JobDetail = JobSummary & { log: string[]; events: ClaudeEvent[] };
 
 export type Meta = { formats: { id: string; description: string; width: number; height: number; static: boolean }[]; sceneTypes: Scene["type"][]; remotionInstalled: boolean; root: string };
-
-async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const init: RequestInit = { method, headers: {} };
-  if (body instanceof FormData) init.body = body;
-  else if (body !== undefined) {
-    init.body = JSON.stringify(body);
-    (init.headers as Record<string, string>)["content-type"] = "application/json";
-  }
-  const res = await fetch(url, init);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
-  return data as T;
-}
-
-export const api = {
-  get: <T,>(url: string) => req<T>("GET", url),
-  post: <T,>(url: string, body?: unknown) => req<T>("POST", url, body ?? {}),
-  put: <T,>(url: string, body: unknown) => req<T>("PUT", url, body),
-  del: <T,>(url: string) => req<T>("DELETE", url),
-};
-
-export const fmt = (n: number | null | undefined) =>
-  n == null ? "–" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(Math.round(n * 10) / 10);
-export const pct = (n: number | null | undefined) => (n == null ? "–" : (n * 100).toFixed(1) + "%");
-export const ago = (t: number | string | null | undefined) => {
-  if (!t) return "";
-  const s = (Date.now() - new Date(t).getTime()) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-};
-export const bytes = (n: number) => (n > 1e6 ? (n / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB");
 
 export type StudioDefaults = { engine: "hyperframes" | "remotion"; voiceProvider: "auto" | "elevenlabs" | "kokoro"; variants: string[]; autoSync: boolean };
 export type SettingsData = {

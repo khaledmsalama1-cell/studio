@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronRight, CircleAlert, Wrench } from "lucide-react";
-import type { ClaudeEvent, JobDetail } from "@/shared/api";
+import type { ClaudeEvent, JobDetail } from "@/shared/api/types";
 import { Markdown } from "@/shared/ui/Markdown";
 
 const TOOL_LABEL: Record<string, string> = { Bash: "Ran", Read: "Read", Edit: "Edited", Write: "Wrote", Glob: "Searched files", Grep: "Searched", WebFetch: "Fetched", WebSearch: "Searched the web", Task: "Delegated", Agent: "Delegated", Skill: "Used skill", TodoWrite: "Planned" };

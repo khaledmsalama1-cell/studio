@@ -1,11 +1,14 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, ClipboardPaste, ExternalLink, LoaderCircle, Play, TriangleAlert, Wrench } from "lucide-react";
-import { api } from "@/shared/api";
-import { useJobs } from "@/app/Layout";
 import { type AgentStatus, useAgents } from "@/features/agents";
 import { Button, Input, cx } from "@/shared/ui/ui";
 import { Section } from "../controls";
+import { connectAgentKey } from "@/features/agents/api";
+import { useKeyEntry } from "@/shared/hooks/useKeyEntry";
+import { useAgentSetup } from "../useAgentSetup";
+import { useCopy } from "@/shared/hooks/useCopy";
+import { agentState } from "../model";
 
 export function AgentsSection() {
   const [watching, setWatching] = useState<string | null>(null);
@@ -29,54 +32,9 @@ export function AgentsSection() {
 }
 
 export function AgentCard({ a, active, onUse, watching, setWatching }: { a: AgentStatus; active: boolean; onUse: () => void; watching: boolean; setWatching: (on: boolean) => void }) {
-  const qc = useQueryClient();
-  const { openJob, jobs } = useJobs();
-  const [how, setHow] = useState<"account" | "key" | null>(null);
-  const [test, setTest] = useState<{ ok: boolean; reply: string; seconds: number } | null>(null);
-  const [testing, setTesting] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [confirm, setConfirm] = useState(false);
-  const installing = jobs.find((j) => j.kind === "setup" && j.status === "running" && j.title === `Install ${a.name}`);
-  const finished = jobs.filter((j) => j.kind === "setup" && j.title === `Install ${a.name}` && j.status !== "running").length;
-  useEffect(() => {
-    if (finished) qc.invalidateQueries({ queryKey: ["agents"] });
-  }, [finished]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Stop watching for a sign-in once it has happened
-  useEffect(() => {
-    if (a.signedIn && watching) (setWatching(false), setHow(null));
-  }, [a.signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!confirm) return;
-    const t = setTimeout(() => setConfirm(false), 3500);
-    return () => clearTimeout(t);
-  }, [confirm]);
-
-  const install = async () => openJob((await api.post<{ id: string }>(`/api/agents/${a.id}/install`, {})).id);
-  const runTest = async () => {
-    setTesting(true);
-    setTest(null);
-    try {
-      setTest(await api.post(`/api/agents/${a.id}/test`, {}));
-    } catch (e) {
-      setTest({ ok: false, reply: e instanceof Error ? e.message : "The test didn't run", seconds: 0 });
-    } finally {
-      setTesting(false);
-    }
-  };
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(a.signIn);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {}
-  };
-  const dropKey = async () => {
-    await api.del(`/api/agents/${a.id}/key`);
-    setConfirm(false);
-    qc.invalidateQueries({ queryKey: ["agents"] });
-  };
-
-  const state = !a.installed ? "Not installed" : !a.signedIn ? "Not signed in" : "Ready";
+  const { how, signInWithAccount, signInWithKey, cancelSignIn, test, testing, runTest, installing, install, removeArmed, removeKey } = useAgentSetup(a, watching, setWatching);
+  const { copied, copy } = useCopy();
+  const state = agentState(a);
   return (
     <div className={cx("overflow-hidden rounded-[var(--radius-panel)] border bg-surface transition-[border-color,box-shadow] duration-150", active ? "border-cobalt shadow-[0_0_0_1px_var(--color-cobalt)]" : "border-line-soft")}>
       <div className="flex flex-wrap items-center gap-4 p-5">
@@ -126,7 +84,7 @@ export function AgentCard({ a, active, onUse, watching, setWatching }: { a: Agen
           <Steps>
             <Step done={a.installed} label={a.installed ? `Installed · ${a.version}` : "Install it on this computer"}>
               {!a.installed && (
-                <Button size="sm" variant="primary" icon={<Wrench className="size-3.5" />} busy={!!installing} onClick={() => (installing ? openJob(installing.id) : install())}>
+                <Button size="sm" variant="primary" icon={<Wrench className="size-3.5" />} busy={!!installing} onClick={install}>
                   {installing ? "Installing" : "Install"}
                 </Button>
               )}
@@ -134,10 +92,10 @@ export function AgentCard({ a, active, onUse, watching, setWatching }: { a: Agen
             <Step done={a.signedIn} label="Sign in" muted={!a.installed}>
               {a.installed && !how && (
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => (setHow("account"), setWatching(true))}>
+                  <Button size="sm" onClick={signInWithAccount}>
                     With your account
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setHow("key")}>
+                  <Button size="sm" variant="ghost" onClick={signInWithKey}>
                     Use an API key
                   </Button>
                 </div>
@@ -151,27 +109,27 @@ export function AgentCard({ a, active, onUse, watching, setWatching }: { a: Agen
               </p>
               <div className="flex max-w-[460px] items-center gap-2 rounded-lg border border-line bg-raised py-1.5 pr-1.5 pl-3">
                 <code className="flex-1 font-mono text-meta">{a.signIn}</code>
-                <Button size="sm" variant="ghost" icon={copied ? <Check className="size-3.5" /> : <ClipboardPaste className="size-3.5" />} onClick={copy}>
+                <Button size="sm" variant="ghost" icon={copied ? <Check className="size-3.5" /> : <ClipboardPaste className="size-3.5" />} onClick={() => copy(a.signIn)}>
                   {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
               <p className="mt-2 flex items-center gap-2 text-caption text-ink-3">
                 <LoaderCircle className="size-3.5 animate-spin" /> Waiting for you to sign in. This card updates on its own
-                <button className="text-cobalt hover:underline" onClick={() => (setHow(null), setWatching(false))}>
+                <button className="text-cobalt hover:underline" onClick={cancelSignIn}>
                   Cancel
                 </button>
               </p>
             </div>
           )}
-          {a.installed && how === "key" && <AgentKey a={a} onDone={() => setHow(null)} onCancel={() => setHow(null)} />}
+          {a.installed && how === "key" && <AgentKey a={a} onDone={cancelSignIn} onCancel={cancelSignIn} />}
         </div>
       )}
 
       {a.ready && a.mode === "key" && (
         <div className="flex flex-wrap items-center gap-3 border-t border-line-soft px-5 py-3 text-caption text-ink-3">
           Signed in with an API key
-          <button className={cx("hover:underline", confirm ? "text-danger" : "text-ink-2")} onClick={() => (confirm ? dropKey() : setConfirm(true))}>
-            {confirm ? "Remove the key?" : `Remove key and use your ${a.accountLabel.split(" (")[0]} instead`}
+          <button className={cx("hover:underline", removeArmed ? "text-danger" : "text-ink-2")} onClick={removeKey}>
+            {removeArmed ? "Remove the key?" : `Remove key and use your ${a.accountLabel.split(" (")[0]} instead`}
           </button>
         </div>
       )}
@@ -194,34 +152,13 @@ export function Step({ done, label, muted, children }: { done: boolean; label: s
 
 export function AgentKey({ a, onDone, onCancel }: { a: AgentStatus; onDone: () => void; onCancel: () => void }) {
   const qc = useQueryClient();
-  const [value, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const submit = async (v = value) => {
-    if (!v.trim()) return;
-    setBusy(true);
-    setProblem(null);
-    try {
-      const r = await api.post<{ ok: boolean; detail?: string }>(`/api/agents/${a.id}/key`, { value: v.trim() });
-      if (!r.ok) return setProblem(r.detail || "That key didn't work");
-      await qc.invalidateQueries({ queryKey: ["agents"] });
-      onDone();
-    } catch (e) {
-      setProblem(e instanceof Error ? e.message : "Couldn't save the key");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const paste = async () => {
-    try {
-      const t = (await navigator.clipboard.readText()).trim();
-      if (!t) return setProblem("The clipboard is empty. Copy the key first");
-      setValue(t);
-      submit(t);
-    } catch {
-      setProblem("The browser blocked reading the clipboard. Paste into the box instead");
-    }
-  };
+  const entry = useKeyEntry(async (key) => {
+    const r = await connectAgentKey(a.id, { value: key });
+    if (!r.ok) return { ok: false, detail: r.detail || "That key didn't work" };
+    await qc.invalidateQueries({ queryKey: ["agents"] });
+    onDone();
+    return null;
+  });
   return (
     <div className="mt-3 ml-8">
       <p className="mb-2 text-caption text-ink-2">
@@ -232,13 +169,13 @@ export function AgentKey({ a, onDone, onCancel }: { a: AgentStatus; onDone: () =
         , copy it, then paste it here. It's checked with {a.maker} first and{a.id === "codex" ? " handed to Codex, which keeps it" : " kept in .env on this computer"}. Usage is billed to that key.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" size="sm" icon={<ClipboardPaste className="size-3.5" />} busy={busy} onClick={paste}>
+        <Button variant="primary" size="sm" icon={<ClipboardPaste className="size-3.5" />} busy={entry.busy} onClick={entry.paste}>
           Paste and connect
         </Button>
-        <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(e) => (e.preventDefault(), submit())}>
-          <Input type="password" autoComplete="off" spellCheck={false} value={value} onChange={(e) => setValue(e.target.value)} placeholder="or paste it here" aria-label={`${a.name} API key`} className="!h-8" />
-          {value.trim() && (
-            <Button size="sm" type="submit" busy={busy}>
+        <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(e) => (e.preventDefault(), entry.submit())}>
+          <Input type="password" autoComplete="off" spellCheck={false} value={entry.value} onChange={(e) => entry.setValue(e.target.value)} placeholder="or paste it here" aria-label={`${a.name} API key`} className="!h-8" />
+          {entry.value.trim() && (
+            <Button size="sm" type="submit" busy={entry.busy}>
               Connect
             </Button>
           )}
@@ -247,9 +184,9 @@ export function AgentKey({ a, onDone, onCancel }: { a: AgentStatus; onDone: () =
           Cancel
         </Button>
       </div>
-      {problem && (
+      {entry.problem && (
         <p className="mt-2 flex items-center gap-2 text-caption text-danger">
-          <TriangleAlert className="size-4" /> {problem}
+          <TriangleAlert className="size-4" /> {entry.problem.detail}
         </p>
       )}
     </div>

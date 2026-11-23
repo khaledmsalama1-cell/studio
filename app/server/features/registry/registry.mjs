@@ -7,6 +7,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { DATA, readJSON } from "../../core/paths.mjs";
 import { getSettings, saveSettings } from "../../core/settings.mjs";
+import { need } from "../../core/http.mjs";
 
 const run = promisify(execFile);
 const DIR = path.join(DATA, "registry");
@@ -74,37 +75,30 @@ export function status() {
   );
 }
 
-export function registerRegistry(app, { need }) {
+/** Point the registries at other repos (owner/repo or a GitHub URL), then sync them */
+export async function setSources(body) {
+  const next = {};
+  for (const k of KINDS) {
+    if (body[k] === undefined) continue;
+    const v = String(body[k]).trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$|\/$/g, "");
+    need(/^[\w.-]+\/[\w.-]+$/.test(v), `${k}: use owner/repo`);
+    next[k] = v;
+  }
+  saveSettings({ registries: { ...sources(), ...next } });
+  await Promise.all(Object.keys(next).map(refresh));
+}
+export const refreshAll = () => Promise.all(KINDS.map(refresh));
+
+/** Brand starters for the gallery: what the cards need, not the whole kit */
+export function brandStarters() {
   ensureFresh();
-  app.get("/api/registry", (c) => c.json(status()));
-  app.post("/api/registry/refresh", async (c) => {
-    await Promise.all(KINDS.map(refresh));
-    return c.json(status());
-  });
-  app.put("/api/registry/sources", async (c) => {
-    const body = await c.req.json();
-    const next = {};
-    for (const k of KINDS) {
-      if (body[k] === undefined) continue;
-      const v = String(body[k]).trim().replace(/^https?:\/\/github\.com\//, "").replace(/\.git$|\/$/g, "");
-      need(/^[\w.-]+\/[\w.-]+$/.test(v), `${k}: use owner/repo`);
-      next[k] = v;
-    }
-    saveSettings({ registries: { ...sources(), ...next } });
-    await Promise.all(Object.keys(next).map(refresh));
-    return c.json(status());
-  });
-  // Brand starters (studio-templates brands/): what the gallery needs, not the whole kit
-  app.get("/api/brand-starters", (c) => {
-    ensureFresh();
-    const list = cached("templates")?.data?.brands || [];
-    return c.json({
-      starters: list.map((e) => ({ id: e.id, name: e.name, industry: e.industry, industryLabel: e.industryLabel, tagline: e.tagline, colors: e.brand?.visual?.colors || {}, fonts: e.brand?.visual?.fonts || {}, logoSvg: e.logoSvg })),
-      status: status().templates,
-    });
-  });
-  app.get("/api/templates", (c) => {
-    ensureFresh();
-    return c.json({ templates: cached("templates")?.data?.templates || [], status: status().templates });
-  });
+  const list = cached("templates")?.data?.brands || [];
+  return {
+    starters: list.map((e) => ({ id: e.id, name: e.name, industry: e.industry, industryLabel: e.industryLabel, tagline: e.tagline, colors: e.brand?.visual?.colors || {}, fonts: e.brand?.visual?.fonts || {}, logoSvg: e.logoSvg })),
+    status: status().templates,
+  };
+}
+export function templateList() {
+  ensureFresh();
+  return { templates: cached("templates")?.data?.templates || [], status: status().templates };
 }

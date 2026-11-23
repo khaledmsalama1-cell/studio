@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Check, CircleDashed, LoaderCircle, RefreshCw, Wrench } from "lucide-react";
-import { api } from "@/shared/api";
 import { useJobs } from "@/app/Layout";
 import { Button, ErrorNote } from "@/shared/ui/ui";
 import { Row, Rows, Section } from "../controls";
 import type { Doctor, SectionId } from "../types";
+import { runFix } from "../api";
 
 export const FIX: Record<string, { fix?: "remotion" | "voice" | "hooks"; connect?: string }> = {
   "Remotion engine": { fix: "remotion" },
@@ -36,7 +36,7 @@ export function SystemSection({ doctor, fetching, refetch, go }: { doctor?: Doct
   const run = async (id: string) => {
     setErr(null);
     try {
-      openJob((await api.post<{ id: string }>(`/api/settings/fix/${id}`, {})).id);
+      openJob((await runFix(id)).job.id);
     } catch (e) {
       setErr(e);
     }

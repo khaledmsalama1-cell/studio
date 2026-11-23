@@ -1,17 +1,18 @@
 import { Clapperboard, FilePen, FileSearch, Film, FolderTree, Globe, Lock, Play, RefreshCw, TriangleAlert, X } from "lucide-react";
-import type { SettingsData } from "@/shared/api";
+import type { SettingsData } from "@/shared/api/types";
 import { AGENT_SHORT, useAgents } from "@/features/agents";
 import { Button } from "@/shared/ui/ui";
 import { Choice, Row, Rows, Section, Toggle } from "../controls";
 import type { Saver } from "../types";
+import { extraTools, groupOn, permissionMode, TOOL_GROUPS, withGroup } from "../model";
 
 export const GROUPS = [
-  { id: "read", icon: FileSearch, label: "Read your studio", desc: "Open brands, projects, research and templates", tools: ["Read", "Glob", "Grep"], locked: true },
-  { id: "edit", icon: FilePen, label: "Edit and create files", desc: "Write scripts, update brand kits, add scenes", tools: ["Edit", "Write"] },
-  { id: "studio", icon: Clapperboard, label: "Run studio tasks", desc: "Build, voice, preview and render with the studio's own commands", tools: ["Bash(npm run:*)", "Bash(node scripts/:*)", "Bash(npx hyperframes:*)", "Bash(npx --yes hyperframes@0.9.81:*)"] },
-  { id: "media", icon: Film, label: "Work with audio and video", desc: "Trim, convert and measure media with ffmpeg", tools: ["Bash(ffmpeg:*)", "Bash(ffprobe:*)"] },
-  { id: "folders", icon: FolderTree, label: "Organise folders", desc: "List, create and copy folders inside the studio", tools: ["Bash(ls:*)", "Bash(mkdir:*)", "Bash(cp:*)"] },
-  { id: "web", icon: Globe, label: "Use the web", desc: "Search and read pages for research and trends", tools: ["WebFetch", "WebSearch"] },
+  { id: "read", icon: FileSearch, label: "Read your studio", desc: "Open brands, projects, research and templates", tools: TOOL_GROUPS.read, locked: true },
+  { id: "edit", icon: FilePen, label: "Edit and create files", desc: "Write scripts, update brand kits, add scenes", tools: TOOL_GROUPS.edit },
+  { id: "studio", icon: Clapperboard, label: "Run studio tasks", desc: "Build, voice, preview and render with the studio's own commands", tools: TOOL_GROUPS.studio },
+  { id: "media", icon: Film, label: "Work with audio and video", desc: "Trim, convert and measure media with ffmpeg", tools: TOOL_GROUPS.media },
+  { id: "folders", icon: FolderTree, label: "Organise folders", desc: "List, create and copy folders inside the studio", tools: TOOL_GROUPS.folders },
+  { id: "web", icon: Globe, label: "Use the web", desc: "Search and read pages for research and trends", tools: TOOL_GROUPS.web },
 ];
 export type Group = (typeof GROUPS)[number];
 export const MODELS = [
@@ -25,15 +26,12 @@ export function PermissionsSection({ data, save }: { data: SettingsData; save: S
   const { activeId } = useAgents();
   const cl = data.claude;
   const plan = cl.permissionMode === "plan";
-  const has = (g: Group) => g.tools.every((t) => cl.allowedTools.includes(t));
-  const known = new Set(GROUPS.flatMap((g) => g.tools));
-  const extra = cl.allowedTools.filter((t) => !known.has(t));
+  const has = (g: Group) => groupOn(cl.allowedTools, g.tools);
+  const extra = extraTools(cl.allowedTools);
   const put = (next: Partial<SettingsData["claude"]>) => save({ claude: { ...cl, ...next } });
-  // Editing files needs acceptEdits; without it Claude only uses what's switched on
-  const mode = (tools: string[], planOnly: boolean) => (planOnly ? "plan" : tools.includes("Edit") ? "acceptEdits" : "default");
   const setGroup = (g: Group, on: boolean) => {
-    const tools = on ? [...new Set([...cl.allowedTools, ...g.tools])] : cl.allowedTools.filter((t) => !g.tools.includes(t));
-    put({ allowedTools: tools, permissionMode: mode(tools, plan) });
+    const tools = withGroup(cl.allowedTools, g.tools, on);
+    put({ allowedTools: tools, permissionMode: permissionMode(tools, plan) });
   };
   return (
     <>
@@ -42,7 +40,7 @@ export function PermissionsSection({ data, save }: { data: SettingsData; save: S
           label="How Claude works"
           cols={2}
           value={plan ? "plan" : "do"}
-          onChange={(v) => put({ permissionMode: mode(cl.allowedTools, v === "plan") })}
+          onChange={(v) => put({ permissionMode: permissionMode(cl.allowedTools, v === "plan") })}
           options={[
             { id: "do", icon: Play, title: "Do the work", desc: "Make the changes, then tell you what it did" },
             { id: "plan", icon: FileSearch, title: "Plan first", desc: "Look around and propose a plan without changing anything" },

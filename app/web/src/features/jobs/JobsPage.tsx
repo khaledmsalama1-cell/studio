@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { ago } from "@/shared/api";
+import { ago } from "@/shared/format";
 import { useJobs } from "@/app/Layout";
 import { JobLog, Duration } from "./JobLog";
 import { Badge, Empty, PageHeader, cx } from "@/shared/ui/ui";

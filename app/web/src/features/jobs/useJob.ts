@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ClaudeEvent, JobDetail, JobSummary } from "@/shared/api";
+import type { ClaudeEvent, JobDetail, JobSummary } from "@/shared/api/types";
+import { getJob } from "./api";
 
 /** Live view of one job: log lines + Claude events, kept in sync over SSE. */
 export function useJob(id: string | null | undefined, liveStatus?: string) {
@@ -8,7 +9,7 @@ export function useJob(id: string | null | undefined, liveStatus?: string) {
   // Safety net: if the global feed says the job ended but this stream missed it, refetch once
   useEffect(() => {
     if (id && liveStatus && liveStatus !== "running" && job?.status === "running")
-      fetch(`/api/jobs/${id}`).then((r) => r.json()).then((j: JobDetail) => setJob(j)).catch(() => {});
+      getJob(id).then(setJob).catch(() => {});
   }, [id, liveStatus, job?.status]);
   useEffect(() => {
     setJob(null);

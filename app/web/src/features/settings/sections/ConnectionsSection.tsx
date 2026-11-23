@@ -1,12 +1,14 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { AtSign, AudioLines, Check, ClipboardPaste, ExternalLink, Pause, Play, Radar, RefreshCw, TriangleAlert } from "lucide-react";
-import { type SettingsData, api } from "@/shared/api";
+import type { SettingsData } from "@/shared/api/types";
 import { Button, Input, cx } from "@/shared/ui/ui";
 import { Section } from "../controls";
 import type { Saver } from "../types";
+import { useSettings } from "../api";
+import { useVoices } from "@/features/brands/api";
+import type { Test } from "../api";
+import { useServiceConnection } from "../useServiceConnection";
 
-export type Test = { ok: boolean | null; detail: string; accounts?: { id: string; username: string; page: string }[] };
 export const CONNECTIONS = [
   { key: "ELEVENLABS_API_KEY", name: "ElevenLabs", icon: AudioLines, unlocks: "Studio-quality voiceovers, voice casting and word-timed captions", get: "https://elevenlabs.io/app/settings/api-keys", where: "Profile → API keys" },
   { key: "APIFY_TOKEN", name: "Apify", icon: Radar, unlocks: "Research Instagram profiles and Facebook pages", get: "https://console.apify.com/settings/integrations", where: "Settings → API & Integrations" },
@@ -31,55 +33,11 @@ export function ConnectionsSection({ data, save }: { data: SettingsData; save: S
 }
 
 export function Connection({ c, masked, save, children }: { c: (typeof CONNECTIONS)[number]; masked: string | null; save: Saver; children?: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
-  const [checking, setChecking] = useState(false);
-  const [result, setResult] = useState<Test | null>(null);
-  const [confirm, setConfirm] = useState(false);
+  const { open, toggle, entry, check: status, live, state, removeArmed, disconnect } = useServiceConnection(c.key, masked, save);
   const input = useRef<HTMLInputElement>(null);
-  // Saved keys are checked once per session, so the card shows the real account behind them
-  const status = useQuery({ queryKey: ["key-test", c.key, masked], queryFn: () => api.post<Test>("/api/settings/test", { key: c.key }), enabled: !!masked, staleTime: Infinity, retry: false });
-  const live = masked ? status.data : undefined;
-
   useEffect(() => {
     if (open) setTimeout(() => input.current?.focus(), 0);
   }, [open]);
-  useEffect(() => {
-    if (!confirm) return;
-    const t = setTimeout(() => setConfirm(false), 3500);
-    return () => clearTimeout(t);
-  }, [confirm]);
-
-  const connect = async (v = value, force = false) => {
-    const key = v.trim();
-    if (!key) return;
-    setChecking(true);
-    setResult(null);
-    try {
-      const r = force ? null : await api.post<Test>("/api/settings/test", { key: c.key, value: key });
-      if (r && !r.ok) return setResult(r);
-      await save({ env: { [c.key]: key } });
-      setOpen(false);
-      setValue("");
-    } catch (e) {
-      setResult({ ok: false, detail: e instanceof Error ? e.message : "Couldn't check the key" });
-    } finally {
-      setChecking(false);
-    }
-  };
-  const paste = async () => {
-    try {
-      const t = (await navigator.clipboard.readText()).trim();
-      if (!t) return setResult({ ok: false, detail: "The clipboard is empty. Copy the key first" });
-      setValue(t);
-      connect(t);
-    } catch {
-      setResult({ ok: false, detail: "The browser blocked reading the clipboard. Paste into the box instead" });
-      input.current?.focus();
-    }
-  };
-
-  const state = !masked ? "off" : status.isFetching ? "checking" : live?.ok === false ? "bad" : "on";
   return (
     <div className="overflow-hidden rounded-[var(--radius-panel)] border border-line-soft bg-surface">
       <div className="flex flex-wrap items-center gap-4 p-5">
@@ -102,15 +60,15 @@ export function Connection({ c, masked, save, children }: { c: (typeof CONNECTIO
               <Button size="sm" variant="ghost" icon={<RefreshCw className="size-3.5" />} busy={status.isFetching} onClick={() => status.refetch()}>
                 Check
               </Button>
-              <Button size="sm" onClick={() => (setOpen(!open), setResult(null))}>
+              <Button size="sm" onClick={toggle}>
                 {open ? "Cancel" : "Replace"}
               </Button>
-              <Button size="sm" variant={confirm ? "danger" : "ghost"} onClick={() => (confirm ? (save({ env: { [c.key]: "" } }), setConfirm(false)) : setConfirm(true))}>
-                {confirm ? "Remove key?" : "Disconnect"}
+              <Button size="sm" variant={removeArmed ? "danger" : "ghost"} onClick={disconnect}>
+                {removeArmed ? "Remove key?" : "Disconnect"}
               </Button>
             </>
           ) : (
-            <Button size="sm" variant={open ? "secondary" : "primary"} onClick={() => (setOpen(!open), setResult(null))}>
+            <Button size="sm" variant={open ? "secondary" : "primary"} onClick={toggle}>
               {open ? "Cancel" : "Connect"}
             </Button>
           )}
@@ -130,23 +88,23 @@ export function Connection({ c, masked, save, children }: { c: (typeof CONNECTIO
             <li>2. Copy it, then press Paste and connect</li>
           </ol>
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" icon={<ClipboardPaste className="size-4" />} busy={checking} onClick={paste}>
+            <Button variant="primary" icon={<ClipboardPaste className="size-4" />} busy={entry.busy} onClick={entry.paste}>
               Paste and connect
             </Button>
-            <form className="flex min-w-[240px] flex-1 gap-2" onSubmit={(e) => (e.preventDefault(), connect())}>
-              <Input ref={input} type="password" autoComplete="off" spellCheck={false} value={value} onChange={(e) => setValue(e.target.value)} placeholder="or paste it here" aria-label={`${c.name} key`} />
-              {value.trim() && (
-                <Button type="submit" busy={checking}>
+            <form className="flex min-w-[240px] flex-1 gap-2" onSubmit={(e) => (e.preventDefault(), entry.submit())}>
+              <Input ref={input} type="password" autoComplete="off" spellCheck={false} value={entry.value} onChange={(e) => entry.setValue(e.target.value)} placeholder="or paste it here" aria-label={`${c.name} key`} />
+              {entry.value.trim() && (
+                <Button type="submit" busy={entry.busy}>
                   Connect
                 </Button>
               )}
             </form>
           </div>
-          {result && !result.ok && (
+          {entry.problem && (
             <p className="mt-3 flex flex-wrap items-center gap-2 text-caption text-danger">
-              <TriangleAlert className="size-4" /> {result.detail}
-              {result.ok === null && (
-                <button className="text-ink-2 underline" onClick={() => connect(value, true)}>
+              <TriangleAlert className="size-4" /> {entry.problem.detail}
+              {entry.problem.ok === null && (
+                <button className="text-ink-2 underline" onClick={() => entry.submit(entry.value, true)}>
                   Save it anyway
                 </button>
               )}
@@ -174,7 +132,7 @@ export function StatusPill({ state }: { state: "on" | "off" | "bad" | "checking"
 
 export type Voice = { voice_id: string; name: string; labels?: Record<string, string>; preview_url?: string };
 export function VoicePicker({ value, save }: { value: string | null; save: Saver }) {
-  const { data } = useQuery({ queryKey: ["voices"], queryFn: () => api.get<{ elevenlabs: Voice[] | { error: string } | null }>("/api/voices") });
+  const { data } = useVoices();
   const [all, setAll] = useState(false);
   const [playing, setPlaying] = useState<string | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -224,7 +182,7 @@ export function VoicePicker({ value, save }: { value: string | null; save: Saver
 }
 
 export function InstagramPicker({ accounts, save }: { accounts: NonNullable<Test["accounts"]>; save: Saver }) {
-  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => api.get<SettingsData>("/api/settings") });
+  const { data } = useSettings();
   const value = data?.env.META_IG_USER_ID;
   return (
     <div className="border-t border-line-soft px-5 py-4">

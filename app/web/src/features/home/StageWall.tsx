@@ -1,9 +1,8 @@
-import { type BrandSummary, type ProjectSummary } from "@/shared/api";
+import type { BrandSummary, ProjectSummary } from "@/shared/api/types";
 import { SceneFrame, Stage, useBrandFonts } from "@/shared/scene/ScenePreview";
 import { STATIC } from "@/features/projects";
+import { stageHeight, stageItems } from "./model";
 
-/** Frame height on the stage by shape, so a reel stands taller than a square post */
-const height = (w: number, h: number) => (h / w > 1.5 ? 188 : h / w > 1.1 ? 156 : h === w ? 132 : 96);
 
 type Item = { key: string; w: number; h: number; node: React.ReactNode };
 
@@ -12,40 +11,19 @@ type Item = { key: string; w: number; h: number; node: React.ReactNode };
  * Recent projects show their first frame; with few projects, brand cards fill the rest.
  */
 export function StageWall({ projects, brands }: { projects: ProjectSummary[]; brands: BrandSummary[] }) {
-  const items: Item[] = projects
-    .filter((p) => p.status !== "archived" && (p.thumbnail || p.firstScene))
-    .sort((a, b) => b.updated - a.updated)
-    .slice(0, 6)
-    .map((p) => {
-      const w = p.width || 1080;
-      const h = p.height || 1920;
-      return {
-        key: p.brand + p.id,
-        w,
-        h,
-        node: p.thumbnail ? (
-          <img src={p.thumbnail} alt="" className="size-full object-cover" />
-        ) : (
-          <Stage width={w} height={h}>
-            <SceneFrame scene={p.firstScene!} colors={p.colors} fonts={p.fonts} width={w} height={h} index={0} total={p.scenes} isStatic={STATIC.has(p.format)} />
-          </Stage>
-        ),
-      };
-    });
-  // Too little work yet: the brands themselves stand in, in the shapes they'll be made in
-  const shapes = [
-    [1080, 1920],
-    [1080, 1350],
-    [1080, 1080],
-    [1080, 1920],
-    [1920, 1080],
-    [1080, 1350],
-  ];
-  for (let i = 0; items.length < 4 && brands.length; i++) {
-    const b = brands[i % brands.length];
-    const [w, h] = shapes[items.length];
-    items.push({ key: `brand-${i}`, w, h, node: <BrandCard b={b} /> });
-  }
+  const items: Item[] = stageItems(projects, brands).map((it) => ({
+    ...it,
+    node:
+      "brand" in it ? (
+        <BrandCard b={it.brand} />
+      ) : it.project.thumbnail ? (
+        <img src={it.project.thumbnail} alt="" className="size-full object-cover" />
+      ) : (
+        <Stage width={it.w} height={it.h}>
+          <SceneFrame scene={it.project.firstScene!} colors={it.project.colors} fonts={it.project.fonts} width={it.w} height={it.h} index={0} total={it.project.scenes} isStatic={STATIC.has(it.project.format)} />
+        </Stage>
+      ),
+  }));
   if (!items.length) return null;
 
   // Alternate sides so the newest work sits closest to the headline on both
@@ -54,7 +32,7 @@ export function StageWall({ projects, brands }: { projects: ProjectSummary[]; br
   const column = (list: Item[], side: "left" | "right") => (
     <div aria-hidden className={`pointer-events-none absolute -bottom-10 hidden items-end gap-3 lg:flex ${side === "left" ? "left-6 flex-row-reverse" : "right-6"}`}>
       {list.map((it, i) => {
-        const fh = height(it.w, it.h);
+        const fh = stageHeight(it.w, it.h);
         return (
           <div
             key={it.key}
