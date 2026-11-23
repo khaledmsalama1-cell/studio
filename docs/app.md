@@ -23,9 +23,45 @@ npm run app:dev        # hot reload: UI on http://127.0.0.1:5173 updates as you 
 ## How it works
 
 - `app/server/` — a small Node server (Hono) bound to **127.0.0.1 only**, with Host/Origin checks so other sites can't call it. It reads and writes the same files as the CLI (`brands/`, `projects/`, `.env`) and runs the same `npm` scripts as child processes. Files are only served from `brands/`, `projects/` and `research/`.
-- Long actions are **jobs** (`app/server/jobs.mjs`) streamed to the browser over Server-Sent Events; history is kept in `app/.data/jobs.json`.
-- Agent tasks run headless in the repo (`app/server/agents.mjs`): `claude -p --output-format stream-json`, `codex exec --json` or `gemini -p --output-format stream-json`. Each uses its own sign-in (your Claude, ChatGPT or Google account) or an API key from Settings → Agents, and reads the studio's instructions (`CLAUDE.md`; Codex via `AGENTS.md`, Gemini via `GEMINI.md`). Background tasks can't stop to ask for permission, so **Settings → Permissions** lists what they may do without asking (defaults: edit files, run the studio's npm scripts, HyperFrames, ffmpeg). Claude follows those rules exactly; Codex maps them to its sandbox (writes and commands stay inside the studio folder) and Gemini to its approval mode. Anything refused is reported in the chat.
+- Long actions are **jobs** (`app/server/core/jobs.mjs`) streamed to the browser over Server-Sent Events; history is kept in `app/.data/jobs.json`.
+- Agent tasks run headless in the repo (`app/server/features/agents/agents.mjs`): `claude -p --output-format stream-json`, `codex exec --json` or `gemini -p --output-format stream-json`. Each uses its own sign-in (your Claude, ChatGPT or Google account) or an API key from Settings → Agents, and reads the studio's instructions (`CLAUDE.md`; Codex via `AGENTS.md`, Gemini via `GEMINI.md`). Background tasks can't stop to ask for permission, so **Settings → Permissions** lists what they may do without asking (defaults: edit files, run the studio's npm scripts, HyperFrames, ffmpeg). Claude follows those rules exactly; Codex maps them to its sandbox (writes and commands stay inside the studio folder) and Gemini to its approval mode. Anything refused is reported in the chat.
 - Signing in to an agent happens in a terminal (`claude auth login`, `codex login`, or `gemini` → Sign in with Google); the Agents card shows the command and updates on its own when you're done.
-- `app/web/` — React + Vite + Tailwind. The scene frames (`components/ScenePreview.tsx`) mirror the HyperFrames template's layout so edits look like the render; the **Frames** tab shows the real rendered frames.
+- `app/web/` — React + Vite + Tailwind. The scene frames (`shared/scene/ScenePreview.tsx`) mirror the HyperFrames template's layout so edits look like the render; the **Frames** tab shows the real rendered frames.
+
+## Code layout (feature-based)
+
+Both halves of the app are organised by feature: everything about brands lives in one folder, everything about projects in another, and so on. Shared plumbing sits apart from the features.
+
+```
+app/
+├── server/
+│   ├── index.mjs                 # bootstrap: Host/Origin guard, registers every feature, serves the built UI
+│   ├── core/                     # shared by all features
+│   │   ├── paths.mjs             #   repo paths, safe file access, JSON/text reading
+│   │   ├── jobs.mjs              #   background jobs (child processes) + their event streams
+│   │   ├── settings.mjs          #   app/.data/settings.json (permissions, studio defaults, agent choice)
+│   │   ├── env.mjs               #   .env keys the UI may write
+│   │   ├── http.mjs              #   bad()/need() errors, job response envelope
+│   │   └── scripts.mjs           #   running scripts/*.mjs with the server's Node
+│   └── features/<name>/          # one folder per feature: its logic (<name>.mjs) and routes (routes.mjs)
+│       ├── home/  brands/  projects/  research/  voices/  files/
+│       ├── agents/               #   agents.mjs (Claude Code / Codex / Gemini runner) + chat.mjs (chat routes)
+│       ├── jobs/  settings/  library/  apps/  registry/
+└── web/src/
+    ├── main.tsx                  # entry: providers + router
+    ├── app/                      # the shell: router.tsx, Layout.tsx (sidebar, activity dock), styles.css
+    ├── shared/                   # used by every feature
+    │   ├── api.ts                #   API client + types
+    │   ├── ui/                   #   UI kit (buttons, fields, dialog, panels), Markdown, BarChart
+    │   ├── scene/                #   ScenePreview: draws a scene in a brand's colours and fonts
+    │   ├── theme.ts  useRun.ts
+    └── features/<name>/          # pages, components and hooks of one feature
+        ├── index.ts              #   its public API: other code imports from "@/features/<name>" only
+        ├── home/  brands/  projects/  create/  library/  research/
+        ├── agents/  apps/  jobs/
+        └── settings/             #   SettingsPage + controls.tsx + sections/ (one file per section)
+```
+
+Rules: a feature may import `@/shared/*`, `@/app/*` and other features' `index.ts`, never another feature's files directly. `@/` is `app/web/src` (set in `vite.config.ts` and `tsconfig.json`). On the server, a new feature is a folder with a `register<Name>(app)` function added to `index.mjs`.
 
 Nothing here is exposed to the internet. Don't change the server to listen on `0.0.0.0`: it can run commands on your computer.
