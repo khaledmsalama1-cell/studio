@@ -55,7 +55,9 @@ export function startJob({ kind, title, cmd, args, cwd, meta = {}, onLine, env }
   const job = { id, kind, title, meta, status: "running", started: Date.now(), ended: null, exitCode: null, log: [], events: [], result: null };
   jobs.set(id, job);
 
-  const proc = spawn(cmd, args, { cwd, env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1", ...env }, stdio: ["ignore", "pipe", "pipe"] });
+  const childEnv = { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1", ...env };
+  for (const k of Object.keys(childEnv)) if (childEnv[k] === undefined) delete childEnv[k];
+  const proc = spawn(cmd, args, { cwd, env: childEnv, stdio: ["ignore", "pipe", "pipe"] });
   job.proc = proc;
   const push = (raw) => {
     for (const line of strip(raw).split("\n")) {

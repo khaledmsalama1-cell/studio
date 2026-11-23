@@ -76,7 +76,7 @@ Extra tools, skills and MCP connectors are added from the Apps page (local catal
 
 ## Studio UI
 
-`npm run app` serves a local web UI (`app/`) that edits the same files and runs the same npm scripts. When Claude is started from the UI, it runs headless: no one can answer questions mid-task, so finish the work and put questions in the final message.
+`npm run app` serves a local web UI (`app/`) that edits the same files and runs the same npm scripts. Tasks from the UI go to the agent picked in Settings → Agents: Claude Code, OpenAI Codex or Gemini CLI (`app/server/agents.mjs`; Codex reads `AGENTS.md`, Gemini reads `GEMINI.md`, both point back here). The agent runs headless: no one can answer questions mid-task, so finish the work and put questions in the final message.
 
 ## Where things are
 

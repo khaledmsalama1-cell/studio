@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { Blocks, ChevronUp, Clapperboard, Plus, Headphones, LayoutGrid, ListChecks, MessageSquareText, Monitor, Moon, Palette, Radar, Settings, Sun } from "lucide-react";
 import { useTheme } from "../lib/theme";
+import { useAgents, AGENT_SHORT } from "../lib/agents";
 import { NowPlaying } from "../lib/player";
 import { useJobFeed } from "../lib/jobs";
 import type { JobSummary } from "../lib/api";
@@ -82,6 +83,7 @@ export function Logo({ className = "size-7" }: { className?: string }) {
 }
 
 function Rail({ onCreate }: { onCreate: () => void }) {
+  const { activeId } = useAgents();
   return (
     <nav aria-label="Main" className="flex flex-none items-center gap-1 overflow-x-auto border-b border-line-soft bg-surface px-3 py-2 md:w-[240px] md:flex-col md:items-stretch md:gap-0.5 md:border-r md:border-b-0 md:px-4 md:py-5">
       <div className="mr-2 flex items-center gap-2.5 px-2 md:mr-0 md:mb-6">
@@ -95,7 +97,7 @@ function Rail({ onCreate }: { onCreate: () => void }) {
       {NAV.map(({ to, label, icon: Icon, end }) => (
         <NavLink key={to} to={to} end={end} className={navRow}>
           <Icon className="size-[18px] flex-none" strokeWidth={1.5} />
-          {label}
+          {to === "/claude" ? `Ask ${AGENT_SHORT[activeId]}` : label}
         </NavLink>
       ))}
       <div className="flex items-center gap-1 md:mt-auto md:flex-col md:items-stretch md:gap-3">

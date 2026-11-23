@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Check, ChevronLeft, ChevronRight, Clapperboard, History, Mic, Palette, Plus, Radar, X } from "lucide-react";
+import { ArrowUp, Bot, Check, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, History, Mic, Palette, Plus, Radar, X } from "lucide-react";
 import { api, ago, type BrandSummary, type Meta, type ProjectSummary } from "../lib/api";
 import { useJob } from "../lib/jobs";
 import { useRun } from "../lib/useRun";
@@ -9,8 +9,9 @@ import { useJobs } from "../components/Layout";
 import { ClaudeEvents } from "../components/ClaudeThread";
 import { ENTRIES, Thumb, type Entry } from "../components/CreateDialog";
 import { ErrorNote, cx } from "../components/ui";
+import { useAgents, AGENT_SHORT, type AgentId } from "../lib/agents";
 
-type Thread = { id: string; title: string; started: number; updated: number; status: string; sessionId: string | null; jobs: string[] };
+type Thread = { id: string; title: string; started: number; updated: number; status: string; sessionId: string | null; jobs: string[]; agent?: AgentId };
 type Tab = { key: string; thread?: string }; // thread = first job id, or the session id once known
 type Ctx = { kind: "brand" | "project"; id: string; label: string };
 
@@ -54,6 +55,7 @@ export default function Claude() {
   const { data: brands } = useQuery({ queryKey: ["brands"], queryFn: () => api.get<BrandSummary[]>("/api/brands") });
   const { jobs } = useJobs();
   const { run, error, pending } = useRun();
+  const agents = useAgents();
 
   const [tabs, setTabs] = useState<Tab[]>(loadTabs);
   const [active, setActive] = useState(() => tabs[0].key);
@@ -76,6 +78,8 @@ export default function Claude() {
   const threadOf = (t?: Tab) => (t?.thread ? threads?.find((x) => x.id === t.thread || x.jobs.includes(t.thread!)) : undefined);
   const tab = tabs.find((t) => t.key === active) || tabs[0];
   const thread = threadOf(tab);
+  const agentId: AgentId = (thread?.agent as AgentId) || agents.activeId;
+  const who = AGENT_SHORT[agentId];
   const busy = !!thread && jobs.some((j) => thread.jobs.includes(j.id) && j.status === "running");
   const brandObj = brands?.find((b) => b.slug === brand) || brands?.[0];
   const text = drafts[tab.key] || "";
@@ -136,7 +140,7 @@ export default function Claude() {
   };
 
   const composer = (
-    <Composer text={text} setText={setText} onSend={() => send(text)} busy={busy} pending={pending} inputRef={input} brands={brands || []} brand={brand} setBrand={setBrand} ctx={ctx} setCtx={setCtx} big={!thread} locked={!!thread} />
+    <Composer text={text} setText={setText} onSend={() => send(text)} busy={busy} pending={pending} inputRef={input} brands={brands || []} brand={brand} setBrand={setBrand} ctx={ctx} setCtx={setCtx} big={!thread} locked={!!thread} who={who} picker={<AgentPicker locked={!!thread} agentId={agentId} />} />
   );
 
   return (
@@ -186,7 +190,7 @@ export default function Claude() {
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="flex flex-1 flex-col items-center justify-center px-2 py-8">
-            <h1 className="mb-6 text-center text-[36px] leading-[1.05] tracking-[-0.03em] md:text-[44px]">What should Claude make today?</h1>
+            <h1 className="mb-6 text-center text-[36px] leading-[1.05] tracking-[-0.03em] md:text-[44px]">What should {who} make today?</h1>
             <div className="w-full max-w-[860px]">
               <ErrorNote error={error} />
               {composer}
@@ -207,9 +211,9 @@ export default function Claude() {
 }
 
 // ---------------------------------------------------------------- composer
-function Composer({ text, setText, onSend, busy, pending, inputRef, brands, brand, setBrand, ctx, setCtx, big, locked }: {
+function Composer({ text, setText, onSend, busy, pending, inputRef, brands, brand, setBrand, ctx, setCtx, big, locked, who, picker }: {
   text: string; setText: (s: string) => void; onSend: () => void; busy: boolean; pending: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>;
-  brands: BrandSummary[]; brand: string; setBrand: (s: string) => void; ctx: Ctx[]; setCtx: (c: Ctx[]) => void; big: boolean; locked: boolean;
+  brands: BrandSummary[]; brand: string; setBrand: (s: string) => void; ctx: Ctx[]; setCtx: (c: Ctx[]) => void; big: boolean; locked: boolean; who: string; picker: React.ReactNode;
 }) {
   const [menu, setMenu] = useState(false);
   const { data: projects } = useQuery({ queryKey: ["projects", ""], queryFn: () => api.get<ProjectSummary[]>("/api/projects"), enabled: menu });
@@ -252,9 +256,9 @@ function Composer({ text, setText, onSend, busy, pending, inputRef, brands, bran
           }
         }}
         rows={big ? 3 : 2}
-        placeholder={busy ? "Claude is working. You can send a follow-up when it finishes" : big ? "Describe what you want to make, and Claude will make it" : "Reply"}
+        placeholder={busy ? `${who} is working. You can send a follow-up when it finishes` : big ? `Describe what you want to make, and ${who} will make it` : "Reply"}
         className={cx("block w-full resize-none bg-transparent px-5 text-ui placeholder:text-ink-3 focus:outline-none focus-visible:outline-none", big ? "min-h-[96px] pt-4" : "min-h-[56px] pt-3")}
-        aria-label="Message Claude"
+        aria-label={`Message ${who}`}
       />
       <div className="flex items-center gap-2 px-3 pb-3">
         <div ref={box} className="relative">
@@ -263,7 +267,7 @@ function Composer({ text, setText, onSend, busy, pending, inputRef, brands, bran
           </button>
           {menu && (
             <div className="absolute bottom-full left-0 z-30 mb-2 max-h-[320px] w-[280px] overflow-y-auto rounded-xl border border-line-soft bg-raised py-1.5 shadow-float">
-              <p className="px-4 pt-1 pb-1 text-meta text-ink-3">Give Claude a brand</p>
+              <p className="px-4 pt-1 pb-1 text-meta text-ink-3">Give {who} a brand</p>
               {brands.map((x) => (
                 <button key={x.slug} onClick={() => add({ kind: "brand", id: x.slug, label: x.name })} className="flex w-full items-center gap-2.5 px-4 py-2 text-left text-body transition-colors duration-100 hover:bg-line-soft">
                   <span className="size-4 rounded-full" style={{ background: x.colors.primary, boxShadow: `inset 0 0 0 3px ${x.colors.accent}` }} />
@@ -294,6 +298,7 @@ function Composer({ text, setText, onSend, busy, pending, inputRef, brands, bran
             </select>
           </label>
         )}
+        {picker}
         <span className="flex-1" />
         <MicButton onText={(t) => setText(text ? `${text} ${t}` : t)} />
         <button onClick={onSend} disabled={!text.trim() || busy || pending} className="flex size-9 items-center justify-center rounded-lg bg-cobalt-fill text-white transition-[background-color,transform,opacity] duration-150 hover:bg-cobalt-fill-hover active:scale-95 disabled:opacity-40" aria-label="Send">
@@ -432,4 +437,58 @@ function Turn({ id }: { id: string }) {
   const job = useJob(id, live?.status);
   if (!job) return null;
   return <ClaudeEvents job={job} />;
+}
+
+/** Which agent answers: switchable before a conversation starts, fixed once it has */
+function AgentPicker({ locked, agentId }: { locked: boolean; agentId: AgentId }) {
+  const { data, setActive } = useAgents();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => (document.removeEventListener("mousedown", close), document.removeEventListener("keydown", esc));
+  }, [open]);
+  const cur = data?.agents.find((a) => a.id === agentId);
+  if (locked)
+    return (
+      <span className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-caption text-ink-3" title="A conversation stays with the agent it started with">
+        <Bot className="size-4" strokeWidth={1.5} /> {AGENT_SHORT[agentId]}
+      </span>
+    );
+  return (
+    <div ref={box} className="relative">
+      <button onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Choose the agent" className="flex h-9 items-center gap-2 rounded-lg border border-line-soft pr-2 pl-2.5 text-caption text-ink-2 transition-colors duration-150 hover:border-ink-3/50 hover:text-ink">
+        <span className={cx("size-1.5 rounded-full", cur?.ready ? "bg-ok" : "bg-danger")} />
+        {AGENT_SHORT[agentId]}
+        <ChevronDown className="size-3.5" />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 z-30 mb-2 w-[300px] rounded-xl border border-line-soft bg-raised py-1.5 shadow-float">
+          <p className="px-4 pt-1 pb-1 text-meta text-ink-3">Agent for new chats</p>
+          {data?.agents.map((a) => (
+            <button
+              key={a.id}
+              disabled={!a.ready}
+              onClick={() => (setActive(a.id), setOpen(false))}
+              className="flex w-full items-center gap-2.5 px-4 py-2 text-left transition-colors duration-100 hover:bg-line-soft disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            >
+              <span className={cx("size-1.5 flex-none rounded-full", a.ready ? "bg-ok" : "bg-ink-3")} />
+              <span className="min-w-0 flex-1">
+                <span className={cx("block text-body", !a.ready && "text-ink-3")}>{a.name}</span>
+                <span className="block truncate text-meta text-ink-3">{a.ready ? a.detail : a.installed ? "Not signed in" : "Not installed"}</span>
+              </span>
+              {a.id === agentId && <Check className="size-4 text-cobalt" />}
+            </button>
+          ))}
+          <Link to="/settings?s=agents" className="mt-1 block border-t border-line-soft px-4 pt-2 pb-1 text-caption text-cobalt hover:underline">
+            Connect agents
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 }

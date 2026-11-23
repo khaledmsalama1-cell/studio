@@ -9,7 +9,8 @@ import { serve } from "@hono/node-server";
 import { streamSSE } from "hono/streaming";
 import { ROOT, APP, safePath, slugOk, readJSON, readText, fileUrl } from "./paths.mjs";
 import { startJob, cancelJob, getJob, listJobs, subscribe, summary, waitFor } from "./jobs.mjs";
-import { runClaude, getSettings, saveSettings, DEFAULT_CLAUDE, DEFAULT_STUDIO } from "./claude.mjs";
+import { getSettings, saveSettings, DEFAULT_CLAUDE, DEFAULT_STUDIO } from "./claude.mjs";
+import { runAgent, registerAgents, agentStatus, agentSettings } from "./agents.mjs";
 import { registerLibrary } from "./library.mjs";
 import { registerApps } from "./apps.mjs";
 import { registerRegistry, cached as registryCache } from "./registry.mjs";
@@ -527,8 +528,12 @@ app.post("/api/research/:brand/:key/hooks", async (c) => {
 // ---------------------------------------------------------------- claude
 app.post("/api/claude", async (c) => {
   const { prompt, sessionId, title, meta } = await c.req.json();
-  need(prompt?.trim(), "Write what you want Claude to do");
-  const job = runClaude({ prompt: prompt.trim(), sessionId, title, meta: meta || {} });
+  need(prompt?.trim(), "Write what you want the agent to do");
+  // A follow-up stays with the agent the conversation started with
+  const agent = (sessionId && listJobs({ kind: "claude" }).find((j) => j.meta.sessionId === sessionId)?.meta.agent) || agentSettings().active;
+  const st = await agentStatus(agent);
+  if (!st.ready) throw bad(`${st.name} ${st.installed ? "isn't signed in" : "isn't installed"} yet. Connect it in Settings → Agents, then send this again`, 409);
+  const job = runAgent({ prompt: prompt.trim(), sessionId, title, meta: meta || {}, agent });
   return c.json(jobJSON(job));
 });
 
@@ -543,6 +548,7 @@ app.get("/api/conversations", (c) => {
     threads.get(root).updated = j.started;
     threads.get(root).status = j.status;
     threads.get(root).sessionId = j.meta.sessionId;
+    threads.get(root).agent = j.meta.agent || "claude";
   }
   return c.json([...threads.values()].sort((a, b) => b.updated - a.updated));
 });
@@ -605,7 +611,7 @@ app.get("/api/events", (c) =>
 );
 
 // ---------------------------------------------------------------- settings
-const ENV_KEYS = ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "APIFY_TOKEN", "META_ACCESS_TOKEN", "META_IG_USER_ID"];
+const ENV_KEYS = ["ELEVENLABS_API_KEY", "ELEVENLABS_VOICE_ID", "APIFY_TOKEN", "META_ACCESS_TOKEN", "META_IG_USER_ID", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"];
 const envPath = path.join(ROOT, ".env");
 function loadEnvInto(target) {
   for (const line of readText(envPath).split("\n")) {
@@ -703,7 +709,7 @@ app.post("/api/settings/fix/:id", (c) => {
   const job = startJob({ kind: "setup", title: `Set up · ${s.replace("setup:", "")}`, cmd: process.platform === "win32" ? "npm.cmd" : "npm", args: ["run", s], cwd: ROOT });
   return c.json(jobJSON(job));
 });
-app.get("/api/doctor", (c) => {
+app.get("/api/doctor", async (c) => {
   let out = "";
   try {
     out = execFileSync(node, [script("doctor.mjs")], { cwd: ROOT, timeout: 60000 }).toString();
@@ -719,11 +725,8 @@ app.get("/api/doctor", (c) => {
       const [label, ...rest] = l.slice(2).split(/\s{2,}/);
       return { ok: okRow, label: label.trim(), detail: rest.join(" ").replace(/^— /, "").trim() };
     });
-  let claudeVersion = null;
-  try {
-    claudeVersion = execFileSync("claude", ["--version"], { timeout: 15000 }).toString().trim();
-  } catch {}
-  rows.push({ ok: !!claudeVersion, label: "Claude Code CLI", detail: claudeVersion || "install Claude Code — the UI runs Claude tasks through it" });
+  const ag = await agentStatus(agentSettings().active);
+  rows.push({ ok: ag.ready, label: "Agent", detail: ag.ready ? `${ag.name} · ${ag.detail}` : `${ag.name}: ${ag.detail}. Connect it in Settings → Agents` });
   return c.json(rows);
 });
 
@@ -750,6 +753,7 @@ app.get("/files/*", (c) => {
 registerLibrary(app, { need, bad });
 registerRegistry(app, { need, bad });
 registerApps(app, { need, bad });
+registerAgents(app, { need, bad, writeEnvKeys });
 
 // ---------------------------------------------------------------- UI
 const dist = path.join(APP, "dist");

@@ -41,7 +41,7 @@ export function ClaudeEvents({ job, compact }: { job: JobDetail; compact?: boole
         </div>
       )}
       {job.status === "failed" && !job.result && (
-        <pre className="rounded-lg bg-danger-soft p-3 text-meta whitespace-pre-wrap text-danger">{job.log.slice(-15).join("\n") || "Claude exited without output. Check that Claude Code is installed and logged in (Settings → System check)."}</pre>
+        <pre className="rounded-lg bg-danger-soft p-3 text-meta whitespace-pre-wrap text-danger">{job.log.slice(-15).join("\n") || "The agent stopped without output. Check that it is connected in Settings → Agents."}</pre>
       )}
       {job.result?.cost != null && <p className="text-meta text-ink-3">{job.result.turns} turns · ${job.result.cost.toFixed(3)}</p>}
     </div>
