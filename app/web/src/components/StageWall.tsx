@@ -58,7 +58,7 @@ export function StageWall({ projects, brands }: { projects: ProjectSummary[]; br
         return (
           <div
             key={it.key}
-            className={`flex-none overflow-hidden rounded-[6px] shadow-[0_12px_32px_rgb(0_0_0/0.45)] ring-1 ring-white/8 ${i === 1 ? "hidden xl:block" : i === 2 ? "hidden 2xl:block" : ""}`}
+            className={`flex-none overflow-hidden rounded-[6px] shadow-[0_12px_32px_rgb(0_0_0/0.45)] ring-1 ring-white/10 ${i === 1 ? "hidden xl:block" : i === 2 ? "hidden 2xl:block" : ""}`}
             style={{ height: fh, width: Math.round((fh * it.w) / it.h) }}
           >
             {it.node}

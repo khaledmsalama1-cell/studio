@@ -22,7 +22,7 @@ export default function Home() {
   return (
     <>
       {/* Hero: the stage. Your own frames stand on its floor; one question and one search sit in the open middle */}
-      <section className="relative mb-10 overflow-hidden rounded-[20px] bg-stage px-5 pt-14 pb-16 text-center text-stage-ink md:px-10 lg:pb-28">
+      <section className="relative mb-10 overflow-hidden rounded-[20px] bg-stage px-5 dark:ring-1 dark:ring-white/[0.08] pt-14 pb-16 text-center text-stage-ink md:px-10 lg:pb-28">
         {data && <StageWall projects={data.projects} brands={data.brands} />}
         <div className="relative">
           <h1 className="text-[36px] leading-[1.05] tracking-[-0.03em] text-white md:text-[52px]">What will you make today?</h1>
